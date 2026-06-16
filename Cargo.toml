@@ -10,7 +10,7 @@ documentation = "https://docs.rs/auto_doc"
 homepage = "https://github.com/Ran-Nova/auto_doc"
 license = "MIT"
 keywords = ["macro", "documentation", "proc-macro", "markdown"]
-categories = ["development-tools::procedural-macros", "rust-patterns"]
+categories = ["development-tools", "rust-patterns"]
 
 [dependencies]
 proc-macro2 = "1.0.106"

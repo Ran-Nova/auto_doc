@@ -6,8 +6,10 @@ authors = ["Ran-Nova <miiabigloli@gmail.com>"]
 description = "A procedural attribute macro to seamlessly pull external Markdown files into your Rust item documentation."
 readme = "README.md"
 repository = "https://github.com/Ran-Nova/auto_doc"
+documentation = "https://docs.rs/auto_doc"
+homepage = "https://github.com/Ran-Nova/auto_doc"
 license = "MIT"
-keywords = ["macro", "documentation", "procmacro", "markdown"]
+keywords = ["macro", "documentation", "proc-macro", "markdown"]
 categories = ["development-tools::procedural-macros", "rust-patterns"]
 
 [dependencies]

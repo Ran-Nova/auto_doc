@@ -1,0 +1,22 @@
+[package]
+name = "auto_doc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ran-Nova <miiabigloli@gmail.com>"]
+description = "A procedural attribute macro to seamlessly pull external Markdown files into your Rust item documentation."
+readme = "README.md"
+repository = "https://github.com/Ran-Nova/auto_doc"
+license = "MIT"
+keywords = ["macro", "documentation", "procmacro", "markdown"]
+categories = ["development-tools::procedural-macros", "rust-patterns"]
+
+[dependencies]
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
+syn = { version = "2.0.117", default-features = false, features = [
+    "derive",
+    "parsing",
+] }
+
+[lib]
+proc-macro = true

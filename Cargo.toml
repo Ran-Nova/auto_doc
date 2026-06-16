@@ -1,6 +1,6 @@
 [package]
 name = "auto_doc"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Ran-Nova <miiabigloli@gmail.com>"]
 description = "A procedural attribute macro to seamlessly pull external Markdown files into your Rust item documentation."

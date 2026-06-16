@@ -3,7 +3,7 @@ use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::quote;
 use std::{env::var, path::Path};
 use syn::{
-    Error, Expr, ExprLit, Ident, Lit, MetaNameValue, Token, parse::Parser, punctuated::Punctuated,
+    parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, MetaNameValue, Token,
 };
 
 #[derive(Debug)]
@@ -169,6 +169,10 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
     Ok(quote! {
         #[doc = #total_doc_lit]
         #input_tokens
+
+        const _: () = {
+            #( const _: &str = include_str!(#final_absolute_paths); )*
+        };
     }
     .into())
 }
@@ -177,16 +181,16 @@ fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
     let item_tokens: TokenStream2 = item.clone().into();
     let mut iter = item_tokens.into_iter().peekable();
 
-    while let Some(tt) = iter.next() {
+    for tt in iter.by_ref() {
         if let TokenTree::Ident(ident) = &tt {
-            let keyword = ident.to_string();
-
-            if matches!(keyword.as_str(), "struct" | "enum" | "trait" | "fn") {
-                if let Some(TokenTree::Ident(name)) = iter.next() {
-                    return Ok(name.clone());
+            match ident.to_string().as_str() {
+                "struct" | "enum" | "trait" | "fn" => {
+                    if let Some(TokenTree::Ident(name)) = iter.next() {
+                        return Ok(name);
+                    }
+                    break;
                 }
-
-                break;
+                _ => continue,
             }
         }
     }

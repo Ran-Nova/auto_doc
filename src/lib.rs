@@ -28,7 +28,7 @@ impl AutoDocArgs {
         if let Ok(exprs) = Punctuated::<Expr, Token![,]>::parse_terminated.parse2(tokens.clone()) {
             let mut only_strings = true;
 
-            for expr in exprs.iter() {
+            for expr in &exprs {
                 if !matches!(
                     expr,
                     Expr::Lit(ExprLit {
@@ -88,8 +88,7 @@ fn string_from_meta_name_value(nv: &MetaNameValue) -> Result<String, Error> {
 fn path_span(path: &syn::Path) -> Span {
     path.segments
         .first()
-        .map(|seg| seg.ident.span())
-        .unwrap_or_else(Span::call_site)
+        .map_or_else(Span::call_site, |seg| seg.ident.span())
 }
 
 /// Automatically generates documentation for the given item based on the
@@ -124,7 +123,7 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
     files.extend(config.paths);
 
     if files.is_empty() {
-        files.push(format!("docs/{}.md", ident));
+        files.push(format!("docs/{ident}.md"));
     }
 
     let mut doc_contents: Vec<String> = Vec::new();
@@ -136,22 +135,18 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
         if !full_path.exists() {
             return Err(Error::new(
                 span,
-                format!("auto_doc: file not found at `{}`", file),
+                format!("auto_doc: file not found at `{file}`"),
             ));
         }
 
-        let content = std::fs::read_to_string(&full_path).map_err(|e| {
-            Error::new(
-                span,
-                format!("auto_doc: cannot read file `{}`: {}", file, e),
-            )
-        })?;
+        let content = std::fs::read_to_string(&full_path)
+            .map_err(|e| Error::new(span, format!("auto_doc: cannot read file `{file}`: {e}")))?;
 
         doc_contents.push(content);
 
         let abs_path = full_path
             .to_str()
-            .ok_or_else(|| Error::new(span, format!("auto_doc: non-UTF8 path `{}`", file)))?;
+            .ok_or_else(|| Error::new(span, format!("auto_doc: non-UTF8 path `{file}`")))?;
 
         final_absolute_paths.push(abs_path.to_owned());
     }
@@ -188,9 +183,10 @@ fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
                     if let Some(TokenTree::Ident(name)) = iter.next() {
                         return Ok(name);
                     }
+
                     break;
                 }
-                _ => continue,
+                _ => (),
             }
         }
     }

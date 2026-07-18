@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::quote;
-use std::{env::var, path::Path};
+use std::{env::var, fs, path::Path};
 use syn::{
     parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, MetaNameValue, Token,
 };
@@ -14,12 +14,14 @@ struct AutoDocArgs {
 
 impl AutoDocArgs {
     fn from_attribute(attr: TokenStream) -> Result<Self, Error> {
+        Self::from_tokens(attr.into())
+    }
+
+    fn from_tokens(tokens: TokenStream2) -> Result<Self, Error> {
         let mut args = AutoDocArgs {
             path: None,
             paths: Vec::new(),
         };
-
-        let tokens: TokenStream2 = attr.into();
 
         if tokens.is_empty() {
             return Ok(args);
@@ -114,7 +116,7 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
     let ident = get_ident(&item)?;
     let span = ident.span();
 
-    let mut files = Vec::new();
+    let mut files = Vec::with_capacity(config.paths.len() + 1);
 
     if let Some(path) = config.path {
         files.push(path);
@@ -126,21 +128,21 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
         files.push(format!("docs/{ident}.md"));
     }
 
-    let mut doc_contents: Vec<String> = Vec::new();
-    let mut final_absolute_paths = Vec::new();
+    let mut doc_contents: Vec<String> = Vec::with_capacity(files.len());
+    let mut final_absolute_paths = Vec::with_capacity(files.len());
 
     for file in &files {
         let full_path = base_path.join(file);
 
-        if !full_path.exists() {
-            return Err(Error::new(
-                span,
-                format!("auto_doc: file not found at `{file}`"),
-            ));
-        }
+        let content = fs::read_to_string(&full_path).map_err(|e| {
+            let detail = if e.kind() == std::io::ErrorKind::NotFound {
+                format!("auto_doc: file not found at `{file}`")
+            } else {
+                format!("auto_doc: cannot read file `{file}`: {e}")
+            };
 
-        let content = std::fs::read_to_string(&full_path)
-            .map_err(|e| Error::new(span, format!("auto_doc: cannot read file `{file}`: {e}")))?;
+            Error::new(span, detail)
+        })?;
 
         doc_contents.push(content);
 
@@ -151,7 +153,13 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
         final_absolute_paths.push(abs_path.to_owned());
     }
 
-    let mut full_markdown = format!("📖 Documentation pulled from: `{}`\n\n", files.join(", "));
+    let joined_files = files.join(", ");
+    let content_total_len = doc_contents.iter().map(String::len).sum::<usize>();
+    let mut full_markdown = String::with_capacity(joined_files.len() + content_total_len + 40);
+
+    full_markdown.push_str("📖 Documentation pulled from: `");
+    full_markdown.push_str(&joined_files);
+    full_markdown.push_str("`\n\n");
 
     for content in doc_contents {
         full_markdown.push_str(&content);
@@ -195,4 +203,28 @@ fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
         Span::call_site(),
         "auto_doc: unsupported item type",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn parses_string_lists() {
+        let tokens = quote!("docs/a.md", "docs/b.md");
+        let args = AutoDocArgs::from_tokens(tokens).unwrap();
+
+        assert!(args.path.is_none());
+        assert_eq!(args.paths, vec!["docs/a.md", "docs/b.md"]);
+    }
+
+    #[test]
+    fn parses_named_arguments() {
+        let tokens = quote!(path = "docs/a.md", paths = "docs/b.md");
+        let args = AutoDocArgs::from_tokens(tokens).unwrap();
+
+        assert_eq!(args.path.as_deref(), Some("docs/a.md"));
+        assert_eq!(args.paths, vec!["docs/b.md"]);
+    }
 }

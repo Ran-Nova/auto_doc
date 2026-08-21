@@ -1,7 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::quote;
-use std::{env::var, fs, path::Path};
+use std::{
+    env::var,
+    fs,
+    path::{Path, PathBuf},
+};
 use syn::{
     parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, MetaNameValue, Token,
 };
@@ -132,7 +136,11 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
     let mut final_absolute_paths = Vec::with_capacity(files.len());
 
     for file in &files {
-        let full_path = base_path.join(file);
+        let full_path = if Path::new(file).is_absolute() {
+            PathBuf::from(file)
+        } else {
+            base_path.join(file)
+        };
 
         let content = fs::read_to_string(&full_path).map_err(|e| {
             let detail = if e.kind() == std::io::ErrorKind::NotFound {
@@ -182,13 +190,34 @@ fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Er
 
 fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
     let item_tokens: TokenStream2 = item.clone().into();
+    get_ident_from_tokens(item_tokens)
+}
+
+fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, Error> {
     let mut iter = item_tokens.into_iter().peekable();
 
-    for tt in iter.by_ref() {
-        if let TokenTree::Ident(ident) = &tt {
+    while let Some(tt) = iter.next() {
+        if let TokenTree::Ident(ident) = tt {
             match ident.to_string().as_str() {
-                "struct" | "enum" | "trait" | "fn" => {
+                "struct" | "enum" | "trait" | "fn" | "const" | "static" | "type" => {
                     if let Some(TokenTree::Ident(name)) = iter.next() {
+                        return Ok(name);
+                    }
+
+                    break;
+                }
+                "impl" => {
+                    let after_impl = iter.by_ref();
+                    if let Some(TokenTree::Ident(name)) = after_impl.clone().next() {
+                        let mut remaining = after_impl.clone();
+                        if let Some(TokenTree::Ident(next)) = remaining.next() {
+                            if next == "for" {
+                                if let Some(TokenTree::Ident(target)) = remaining.next() {
+                                    return Ok(target);
+                                }
+                            }
+                        }
+
                         return Ok(name);
                     }
 
@@ -226,5 +255,45 @@ mod tests {
 
         assert_eq!(args.path.as_deref(), Some("docs/a.md"));
         assert_eq!(args.paths, vec!["docs/b.md"]);
+    }
+
+    #[test]
+    fn detects_const_name() {
+        let tokens = quote!(
+            const ANSWER: u32 = 42;
+        );
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "ANSWER");
+    }
+
+    #[test]
+    fn detects_type_name() {
+        let tokens = quote!(
+            type Answer = u32;
+        );
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "Answer");
+    }
+
+    #[test]
+    fn detects_static_name() {
+        let tokens = quote!(
+            static ANSWER: u32 = 42;
+        );
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "ANSWER");
+    }
+
+    #[test]
+    fn detects_impl_name() {
+        let tokens = quote!(
+            impl MyType for TraitName {}
+        );
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "MyType");
     }
 }

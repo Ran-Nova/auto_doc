@@ -1,79 +1,85 @@
 # auto_doc 📖
 
-A lightweight, compiler-friendly procedural attribute macro for pulling external Markdown files into Rust documentation.
+A lightweight procedural attribute macro for embedding Markdown documentation into Rust items.
 
-Keep your source code clean while making your docs easier to author and maintain.
+## What it does
 
-## Why use `auto_doc`?
+`auto_doc` reads one or more Markdown files and injects their contents into the generated Rust documentation for the annotated item.
 
-Rust already supports `#[doc = include_str!("...")]`, but this can sometimes interfere with IDE hover tooltips in `rust-analyzer` and is harder to reason about once procedural macros are involved.
-
-`auto_doc` reads Markdown files during compilation and emits a clean string literal for the final documentation item, giving you:
-
-- consistent rendering in `cargo doc`
-- working hover docs in supported editors such as VS Code
-- simpler source code without inline markdown clutter
+This is useful when you want to keep long docs outside the source file and still get proper Rust doc output.
 
 ## Installation
 
-Add this crate to your `Cargo.toml`:
-
 ```toml
 [dependencies]
-auto_doc = "0.1.0"
+auto_doc = "0.1.4"
 ```
 
 ## Usage
 
-By default, `auto_doc` looks for a file named `docs/<item_name>.md` relative to the workspace root where the item is defined.
+### Default behavior
 
-### Basic example
+If no path is provided, the macro looks for:
 
-```rust
-use auto_doc::auto_doc;
-
-// Loads documentation from "docs/my_function.md"
-#[auto_doc]
-pub fn my_function() {
-    // ...
-}
+```text
+docs/<ItemName>.md
 ```
 
-### Custom file paths
+```rust
+use auto_doc::auto_doc;
 
-Specify one or more explicit Markdown file paths:
+#[auto_doc]
+pub fn my_function() {}
+```
+
+### Single custom path
 
 ```rust
 use auto_doc::auto_doc;
 
-#[auto_doc(path = "architecture/SAFETY.md")]
-pub struct SecureVault;
+#[auto_doc(path = "docs/api.md")]
+pub struct MyType;
 ```
 
 ### Multiple files
 
-Combine several Markdown files into one documentation block in declaration order:
+```rust
+use auto_doc::auto_doc;
+
+#[auto_doc("docs/intro.md", "docs/advanced.md")]
+pub trait MyTrait {}
+```
+
+### Multiple named paths
 
 ```rust
 use auto_doc::auto_doc;
 
-#[auto_doc("docs/intro.md", "docs/api_spec.md")]
-pub trait CoreEngine {
-    fn run(&self);
-}
+#[auto_doc(paths = "docs/a.md", paths = "docs/b.md")]
+pub fn complex_function() {}
 ```
 
-You can also use repeated `paths =` attributes for the same effect:
+## Supported item kinds
 
-```rust
-use auto_doc::auto_doc;
+The macro supports item declarations such as:
 
-#[auto_doc(paths = "docs/A.md", paths = "docs/B.md")]
-pub fn complex_operation() {}
-```
+- `struct`
+- `enum`
+- `trait`
+- `fn`
+- `const`
+- `static`
+- `type`
+- `impl`
 
 ## Notes
 
-- Paths are resolved relative to the crate root.
-- Use Markdown files to keep long documentation outside of your source code.
-- `auto_doc` is designed to preserve IDE documentation support and avoid macro expansion artifacts.
+- Paths are resolved relative to the crate root by default.
+- Absolute paths are also accepted.
+- The macro reads the Markdown files at compile time and embeds them into the generated doc text.
+
+## Why use it
+
+- keep documentation outside source files;
+- easier to maintain long docs;
+- works naturally with Rust documentation tooling.

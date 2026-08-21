@@ -207,21 +207,9 @@ fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, Error> {
                     break;
                 }
                 "impl" => {
-                    let after_impl = iter.by_ref();
-                    if let Some(TokenTree::Ident(name)) = after_impl.clone().next() {
-                        let mut remaining = after_impl.clone();
-                        if let Some(TokenTree::Ident(next)) = remaining.next() {
-                            if next == "for" {
-                                if let Some(TokenTree::Ident(target)) = remaining.next() {
-                                    return Ok(target);
-                                }
-                            }
-                        }
-
-                        return Ok(name);
-                    }
-
-                    break;
+                    return get_impl_ident(&mut iter).ok_or_else(|| {
+                        Error::new(Span::call_site(), "auto_doc: invalid impl block")
+                    });
                 }
                 _ => (),
             }
@@ -232,6 +220,35 @@ fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, Error> {
         Span::call_site(),
         "auto_doc: unsupported item type",
     ))
+}
+
+fn get_impl_ident<I>(iter: &mut std::iter::Peekable<I>) -> Option<Ident>
+where
+    I: Iterator<Item = TokenTree>,
+{
+    let mut first_ident = None;
+
+    while let Some(tt) = iter.next() {
+        match tt {
+            TokenTree::Ident(ident) if ident == "for" => {
+                return iter.find_map(|tt| {
+                    if let TokenTree::Ident(ident) = tt {
+                        Some(ident)
+                    } else {
+                        None
+                    }
+                });
+            }
+
+            TokenTree::Ident(ident) if first_ident.is_none() => {
+                first_ident = Some(ident);
+            }
+
+            _ => {}
+        }
+    }
+
+    first_ident
 }
 
 #[cfg(test)]
@@ -292,6 +309,28 @@ mod tests {
         let tokens = quote!(
             impl MyType for TraitName {}
         );
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "TraitName");
+    }
+
+    #[test]
+    fn detects_impl_self_name() {
+        let tokens = quote!(
+            impl MyType {}
+        );
+
+        let ident = get_ident_from_tokens(tokens).unwrap();
+
+        assert_eq!(ident.to_string(), "MyType");
+    }
+
+    #[test]
+    fn detects_trait_impl_target_name() {
+        let tokens = quote!(
+            impl SomeTrait for MyType {}
+        );
+
         let ident = get_ident_from_tokens(tokens).unwrap();
 
         assert_eq!(ident.to_string(), "MyType");

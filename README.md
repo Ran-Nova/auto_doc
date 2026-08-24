@@ -12,8 +12,32 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.1.4"
+auto_doc = "0.2.2"
 ```
+
+## Features
+
+### Default
+
+The default mode has no optional parser dependencies. It supports:
+
+- `#[auto_doc]`;
+- `path = "..."`;
+- repeated `paths = "..."` arguments;
+- positional paths such as `#[auto_doc("docs/api.md")]`.
+
+### `advanced`
+
+The `advanced` feature enables `darling` for extensible attribute argument parsing. Rust items are parsed through the shared `syn` AST layer, so generic items and implementations such as `impl<T> ... for Type<T>` are handled consistently.
+
+Enable it in `Cargo.toml`:
+
+```toml
+[dependencies]
+auto_doc = { version = "0.2.2", features = ["advanced"] }
+```
+
+The positional path syntax remains available in this mode.
 
 ## Usage
 
@@ -57,6 +81,40 @@ use auto_doc::auto_doc;
 
 #[auto_doc(paths = "docs/a.md", paths = "docs/b.md")]
 pub fn complex_function() {}
+```
+
+### Documenting impl members
+
+With the `advanced` feature enabled, use `members = true` to load documentation for named items inside an `impl` block. The implementation documentation uses the normal `docs/<Type>.md` path, while member documentation uses `docs/<Type>/<member>.md`:
+
+```rust
+use auto_doc::auto_doc;
+
+#[auto_doc(members = true)]
+impl<T> MyType<T> {
+	pub fn value(&self) {}
+}
+```
+
+This example expects the following files:
+
+```text
+docs/MyType.md
+docs/MyType/value.md
+```
+
+The option applies to associated functions, types, and constants. It must be used on an `impl` block and is available only in `advanced` mode.
+
+The member path can be customized with the `{type}` and `{member}` placeholders:
+
+```rust
+#[auto_doc(
+	members = true,
+	member_path = "reference/{type}/{member}.md"
+)]
+impl<T> MyType<T> {
+	pub fn value(&self) {}
+}
 ```
 
 ## Supported item kinds

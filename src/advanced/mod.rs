@@ -1,7 +1,10 @@
 use darling::{ast::NestedMeta, FromMeta};
+use error::AdvancedError;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use syn::{parse::Parser, punctuated::Punctuated, Error, LitStr, Token};
+
+mod error;
 
 #[derive(Debug, FromMeta)]
 struct AutoDocArgs {
@@ -16,6 +19,10 @@ struct AutoDocArgs {
 }
 
 pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Error> {
+    expand_auto_doc(attr, item).map_err(AdvancedError::into_syn_error)
+}
+
+fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, AdvancedError> {
     let nested: Vec<NestedMeta> = Punctuated::<NestedMeta, Token![,]>::parse_terminated
         .parse2(attr.into())?
         .into_iter()
@@ -35,11 +42,11 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
 
         let parsed_item: syn::Item = syn::parse2(item.clone().into())?;
         let ident = advanced_item_ident(&parsed_item)?;
-        return crate::common::expand(paths, &ident, item, Vec::new());
+        return Ok(crate::common::expand(paths, &ident, item, Vec::new())?);
     }
 
     let config = AutoDocArgs::from_list(&nested)
-        .map_err(|error| Error::new(Span::call_site(), error.to_string()))?;
+        .map_err(|error| AdvancedError::Attribute(error.to_string()))?;
 
     let mut paths = Vec::with_capacity(config.paths.len() + 1);
     if let Some(path) = config.path {
@@ -52,8 +59,7 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
     let mut additional_paths = Vec::new();
 
     if config.member_path.is_some() && !config.members {
-        return Err(Error::new(
-            Span::call_site(),
+        return Err(AdvancedError::InvalidConfiguration(
             "auto_doc: `member_path` requires `members = true`",
         ));
     }
@@ -62,15 +68,14 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
         let mut item_impl = match parsed_item {
             syn::Item::Impl(item_impl) => item_impl,
             _ => {
-                return Err(Error::new(
-                    Span::call_site(),
+                return Err(AdvancedError::InvalidConfiguration(
                     "auto_doc: `members = true` requires an impl block",
                 ))
             }
         };
 
         for member in &mut item_impl.items {
-            let Some(member_ident) = advanced_impl_item_ident(member) else {
+            let Some(member_info) = ImplMember::from_item(member) else {
                 continue;
             };
             let member_path = config
@@ -78,26 +83,33 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
                 .as_deref()
                 .unwrap_or("docs/{type}/{member}.md")
                 .replace("{type}", &ident.to_string())
-                .replace("{member}", &member_ident.to_string());
+                .replace("{member}", &member_info.ident.to_string())
+                .replace("{kind}", member_info.kind.as_str());
             let member_files = vec![member_path];
             let (member_doc, member_paths) =
                 crate::common::load_documentation(&member_files, ident.span())?;
-            member
+            member_info
+                .item
                 .attrs_mut()
                 .push(syn::parse_quote!(#[doc = #member_doc]));
             additional_paths.extend(member_paths);
         }
 
         let item_tokens = quote::quote!(#item_impl).into();
-        return crate::common::expand(paths, &ident, item_tokens, additional_paths);
+        return Ok(crate::common::expand(
+            paths,
+            &ident,
+            item_tokens,
+            additional_paths,
+        )?);
     }
 
-    crate::common::expand(
+    Ok(crate::common::expand(
         paths,
         &ident,
         quote::quote!(#parsed_item).into(),
         additional_paths,
-    )
+    )?)
 }
 
 fn advanced_item_ident(item: &syn::Item) -> Result<syn::Ident, Error> {
@@ -128,12 +140,40 @@ fn advanced_item_ident(item: &syn::Item) -> Result<syn::Ident, Error> {
     }
 }
 
-fn advanced_impl_item_ident(item: &syn::ImplItem) -> Option<syn::Ident> {
-    match item {
-        syn::ImplItem::Const(item) => Some(item.ident.clone()),
-        syn::ImplItem::Fn(item) => Some(item.sig.ident.clone()),
-        syn::ImplItem::Type(item) => Some(item.ident.clone()),
-        _ => None,
+#[derive(Debug, Clone, Copy)]
+enum ImplMemberKind {
+    Function,
+    Constant,
+    Type,
+}
+
+#[derive(Debug)]
+struct ImplMember<'a> {
+    ident: syn::Ident,
+    kind: ImplMemberKind,
+    item: &'a mut syn::ImplItem,
+}
+
+impl<'a> ImplMember<'a> {
+    fn from_item(item: &'a mut syn::ImplItem) -> Option<Self> {
+        let (ident, kind) = match item {
+            syn::ImplItem::Const(item) => (item.ident.clone(), ImplMemberKind::Constant),
+            syn::ImplItem::Fn(item) => (item.sig.ident.clone(), ImplMemberKind::Function),
+            syn::ImplItem::Type(item) => (item.ident.clone(), ImplMemberKind::Type),
+            _ => return None,
+        };
+
+        Some(Self { ident, kind, item })
+    }
+}
+
+impl ImplMemberKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Function => "function",
+            Self::Constant => "constant",
+            Self::Type => "type",
+        }
     }
 }
 

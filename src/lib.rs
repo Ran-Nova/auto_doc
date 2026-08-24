@@ -16,7 +16,7 @@ mod common;
 mod default;
 
 #[cfg(feature = "advanced")]
-mod darlings;
+mod advanced;
 
 #[cfg(test)]
 mod tests;
@@ -30,12 +30,19 @@ mod tests;
 /// - `#[auto_doc("docs/Item.md", "docs/Other.md") ]`
 /// - `#[auto_doc(paths = "docs/A.md", paths = "docs/B.md") ]`
 ///
+/// With the `advanced` feature:
+/// - `#[auto_doc(members = true)]` documents associated functions, types, and constants in an `impl` block.
+/// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
+///
+/// The `member_path` template supports `{type}` and `{member}` placeholders.
+///
 /// If no paths are provided, the macro falls back to `docs/<ItemName>.md`.
 #[proc_macro_attribute]
 pub fn auto_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     impl_auto_doc(attr, item).unwrap_or_else(|e| e.to_compile_error().into())
 }
+
 #[cfg(feature = "advanced")]
-use darlings::impl_auto_doc;
+use advanced::impl_auto_doc;
 #[cfg(not(feature = "advanced"))]
 use default::impl_auto_doc;

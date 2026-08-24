@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.2"
+auto_doc = "0.2.3"
 ```
 
 ## Features
@@ -28,13 +28,13 @@ The default mode has no optional parser dependencies. It supports:
 
 ### `advanced`
 
-The `advanced` feature enables `darling` for extensible attribute argument parsing. Rust items are parsed through the shared `syn` AST layer, so generic items and implementations such as `impl<T> ... for Type<T>` are handled consistently.
+The `advanced` feature enables `darling` for extensible attribute argument parsing and full `syn` AST support. Generic items and implementations such as `impl<T> ... for Type<T>` are handled through the advanced parser.
 
 Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.2", features = ["advanced"] }
+auto_doc = { version = "0.2.3", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -105,12 +105,12 @@ docs/MyType/value.md
 
 The option applies to associated functions, types, and constants. It must be used on an `impl` block and is available only in `advanced` mode.
 
-The member path can be customized with the `{type}` and `{member}` placeholders:
+The member path can be customized with the `{type}`, `{member}`, and `{kind}` placeholders. The `{kind}` value is `function`, `constant`, or `type`:
 
 ```rust
 #[auto_doc(
 	members = true,
-	member_path = "reference/{type}/{member}.md"
+	member_path = "reference/{type}/{kind}/{member}.md"
 )]
 impl<T> MyType<T> {
 	pub fn value(&self) {}

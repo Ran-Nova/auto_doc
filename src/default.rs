@@ -86,9 +86,10 @@ pub(crate) fn string_from_meta_name_value(nv: &MetaNameValue) -> Result<String, 
 }
 
 pub(crate) fn path_span(path: &syn::Path) -> Span {
-    path.segments
-        .first()
-        .map_or_else(Span::call_site, |seg| seg.ident.span())
+    match path.segments.first() {
+        Some(seg) => seg.ident.span(),
+        None => Span::call_site(),
+    }
 }
 
 pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Error> {
@@ -111,17 +112,38 @@ pub(crate) fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
 pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, Error> {
     let mut iter = item_tokens.into_iter().peekable();
 
-    while let Some(TokenTree::Ident(ident)) = iter.next() {
-        match ident.to_string().as_str() {
-            "struct" | "enum" | "trait" | "fn" | "const" | "static" | "type" => {
-                if let Some(TokenTree::Ident(name)) = iter.next() {
-                    return Ok(name);
+    while let Some(token) = iter.next() {
+        match token {
+            // Skip proc-macro
+            TokenTree::Punct(p) if p.as_char() == '#' => {
+                if let Some(&TokenTree::Group(_)) = iter.peek() {
+                    let _ = iter.next();
                 }
             }
-            "impl" => {
-                return get_impl_ident(&mut iter)
-                    .ok_or_else(|| Error::new(Span::call_site(), "auto_doc: invalid impl block"));
-            }
+            TokenTree::Ident(ident) => match ident.to_string().as_str() {
+                // Skip pub/pub(item)
+                "pub" => {
+                    if let Some(&TokenTree::Group(_)) = iter.peek() {
+                        let _ = iter.next();
+                    }
+                }
+                // Supported item
+                "struct" | "enum" | "trait" | "fn" | "const" | "static" | "type" => {
+                    if let Some(TokenTree::Ident(name)) = iter.next() {
+                        return Ok(name);
+                    }
+                }
+                // Supperted impl, but recommened use advanced feature
+                "impl" => {
+                    return get_impl_ident(&mut iter).ok_or_else(|| {
+                        Error::new(
+                            Span::call_site(),
+                            "auto_doc: invalid impl block. Or use 'advanced' feature",
+                        )
+                    });
+                }
+                _ => {}
+            },
             _ => {}
         }
     }

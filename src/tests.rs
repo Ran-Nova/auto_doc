@@ -24,6 +24,7 @@ fn detects_const_name() {
     let tokens = quote!(
         const ANSWER: u32 = 42;
     );
+
     let ident = get_ident_from_tokens(tokens).unwrap();
 
     assert_eq!(ident.to_string(), "ANSWER");
@@ -34,6 +35,7 @@ fn detects_type_name() {
     let tokens = quote!(
         type Answer = u32;
     );
+
     let ident = get_ident_from_tokens(tokens).unwrap();
 
     assert_eq!(ident.to_string(), "Answer");
@@ -44,6 +46,7 @@ fn detects_static_name() {
     let tokens = quote!(
         static ANSWER: u32 = 42;
     );
+
     let ident = get_ident_from_tokens(tokens).unwrap();
 
     assert_eq!(ident.to_string(), "ANSWER");
@@ -54,6 +57,7 @@ fn detects_impl_name() {
     let tokens = quote!(
         impl MyType for TraitName {}
     );
+
     let ident = get_ident_from_tokens(tokens).unwrap();
 
     assert_eq!(ident.to_string(), "TraitName");
@@ -86,6 +90,7 @@ fn detects_generic_impl_target_name() {
     let tokens = quote!(
         impl<T> SomeTrait<T> for MyType<T> {}
     );
+
     let ident = get_ident_from_tokens(tokens).unwrap();
 
     assert_eq!(ident.to_string(), "MyType");

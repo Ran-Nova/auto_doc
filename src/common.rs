@@ -19,8 +19,10 @@ pub(crate) fn expand(
     } else {
         paths
     };
+
     let (full_markdown, mut absolute_paths) = load_documentation(&files, ident.span())?;
     absolute_paths.extend(additional_paths);
+
     let total_doc_lit = Literal::string(&full_markdown);
     let input_tokens: TokenStream2 = item.into();
 
@@ -50,6 +52,7 @@ pub(crate) fn load_documentation(
         } else {
             base_path.join(file)
         };
+
         let content = fs::read_to_string(&full_path).map_err(|error| {
             let detail = if error.kind() == std::io::ErrorKind::NotFound {
                 format!("auto_doc: file not found at `{file}`")
@@ -58,6 +61,7 @@ pub(crate) fn load_documentation(
             };
             Error::new(span, detail)
         })?;
+
         contents.push(content);
         absolute_paths.push(
             full_path
@@ -69,13 +73,17 @@ pub(crate) fn load_documentation(
 
     let joined_files = files.join(", ");
     let total_len = contents.iter().map(String::len).sum::<usize>();
+
     let mut markdown = String::with_capacity(joined_files.len() + total_len + 40);
+
     markdown.push_str("📖 Documentation pulled from: `");
     markdown.push_str(&joined_files);
     markdown.push_str("`\n\n");
+
     for content in contents {
         markdown.push_str(&content);
         markdown.push_str("\n\n");
     }
+
     Ok((markdown, absolute_paths))
 }

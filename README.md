@@ -12,8 +12,10 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.3"
+auto_doc = "0.2.4"
 ```
+
+*I recommend updating **`auto_doc`** in your **`Cargo.toml`** to the **latest** version for stable library operation.*
 
 ## Features
 
@@ -62,7 +64,15 @@ pub fn my_function() {}
 use auto_doc::auto_doc;
 
 #[auto_doc(path = "docs/api.md")]
-pub struct MyType;
+pub type MyType;
+```
+
+### Single file
+
+```rust
+use auto_doc::auto_doc;
+#[auto_doc("docs/struct.md")]
+pub struct MyStruct;
 ```
 
 ### Multiple files
@@ -79,7 +89,7 @@ pub trait MyTrait {}
 ```rust
 use auto_doc::auto_doc;
 
-#[auto_doc(paths = "docs/a.md", paths = "docs/b.md")]
+#[auto_doc(paths = ["docs/a.md", "docs/b.md"])]
 pub fn complex_function() {}
 ```
 
@@ -108,6 +118,8 @@ The option applies to associated functions, types, and constants. It must be use
 The member path can be customized with the `{type}`, `{member}`, and `{kind}` placeholders. The `{kind}` value is `function`, `constant`, or `type`:
 
 ```rust
+use auto_doc::auto_doc;
+
 #[auto_doc(
 	members = true,
 	member_path = "reference/{type}/{kind}/{member}.md"
@@ -135,6 +147,7 @@ The macro supports item declarations such as:
 - Paths are resolved relative to the crate root by default.
 - Absolute paths are also accepted.
 - The macro reads the Markdown files at compile time and embeds them into the generated doc text.
+- Ignores #[] blocks (this is because of proc_macro_(derive/attribute)) (0.2.4 or later)
 
 ## Why use it
 

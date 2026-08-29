@@ -25,10 +25,10 @@ mod tests;
 /// provided attributes.
 ///
 /// Supported forms:
-/// - `#[auto_doc]`
-/// - `#[auto_doc(path = "docs/Item.md") ]`
-/// - `#[auto_doc("docs/Item.md", "docs/Other.md") ]`
-/// - `#[auto_doc(paths = "docs/A.md", paths = "docs/B.md") ]`
+/// - `#[auto_doc]` - use `docs/{item}.md`
+/// - `#[auto_doc("docs/Item.md")]` - multiple paths work too
+/// - `#[auto_doc(path = "docs/Item.md")]`
+/// - `#[auto_doc(paths = ["docs/A.md", "docs/B.md"])]`
 ///
 /// With the `advanced` feature:
 /// - `#[auto_doc(members = true)]` documents associated functions, types, and constants in an `impl` block.

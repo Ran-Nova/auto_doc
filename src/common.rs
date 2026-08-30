@@ -13,26 +13,50 @@ pub(crate) fn expand(
     ident: &Ident,
     item: TokenStream,
     additional_paths: Vec<String>,
+    is_impl: bool,
 ) -> Result<TokenStream, Error> {
     let files = if paths.is_empty() {
-        vec![format!("docs/{ident}.md")]
+        if is_impl {
+            vec![]
+        } else {
+            vec![format!("docs/{ident}.md")]
+        }
     } else {
         paths
     };
 
-    let (full_markdown, mut absolute_paths) = load_documentation(&files, ident.span())?;
+    let (full_markdown, mut absolute_paths) = if files.is_empty() {
+        (String::new(), Vec::new())
+    } else {
+        load_documentation(&files, ident.span())?
+    };
+
     absolute_paths.extend(additional_paths);
 
-    let total_doc_lit = Literal::string(&full_markdown);
     let input_tokens: TokenStream2 = item.into();
 
-    Ok(quote! {
-        #[doc = #total_doc_lit]
-        #input_tokens
+    let doc_attr = if full_markdown.is_empty() {
+        quote! {}
+    } else {
+        let total_doc_lit = Literal::string(&full_markdown);
 
-        const _: () = {
-            #( const _: &str = include_str!(#absolute_paths); )*
-        };
+        quote! { #[doc = #total_doc_lit] }
+    };
+
+    let include_block = if absolute_paths.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            const _: () = {
+                #( const _: &str = include_str!(#absolute_paths); )*
+            };
+        }
+    };
+
+    Ok(quote! {
+        #doc_attr
+        #input_tokens
+        #include_block
     }
     .into())
 }
@@ -63,6 +87,7 @@ pub(crate) fn load_documentation(
         })?;
 
         contents.push(content);
+
         absolute_paths.push(
             full_path
                 .to_str()

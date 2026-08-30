@@ -1,8 +1,7 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree};
-use syn::{
-    parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, MetaNameValue, Token,
-};
+use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
+use std::iter::Peekable;
+use syn::{parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, Token};
 
 #[derive(Debug)]
 pub(crate) struct AutoDocArgs {
@@ -41,7 +40,7 @@ impl AutoDocArgs {
                 }
             }
 
-            if only_strings {
+            if only_strings && !exprs.is_empty() {
                 for expr in exprs {
                     if let Expr::Lit(ExprLit {
                         lit: Lit::Str(s), ..
@@ -54,42 +53,102 @@ impl AutoDocArgs {
             }
         }
 
-        let metas = Punctuated::<MetaNameValue, Token![,]>::parse_terminated.parse2(tokens)?;
+        let mut iter = tokens.into_iter().peekable();
 
-        for nv in metas {
-            if nv.path.is_ident("path") {
-                if args
-                    .path
-                    .replace(string_from_meta_name_value(&nv)?)
-                    .is_some()
-                {
-                    return Err(Error::new(path_span(&nv.path), "duplicate `path` argument"));
-                }
-            } else if nv.path.is_ident("paths") {
-                args.paths.push(string_from_meta_name_value(&nv)?);
-            } else {
-                return Err(Error::new(path_span(&nv.path), "unknown auto_doc argument"));
-            }
-        }
+        parse_args_from_iter(&mut iter, &mut args)?;
 
         Ok(args)
     }
 }
 
-pub(crate) fn string_from_meta_name_value(nv: &MetaNameValue) -> Result<String, Error> {
-    match &nv.value {
-        Expr::Lit(ExprLit {
-            lit: Lit::Str(s), ..
-        }) => Ok(s.value()),
-        _ => Err(Error::new(path_span(&nv.path), "expected string literal")),
-    }
-}
+fn parse_args_from_iter<I>(iter: &mut Peekable<I>, args: &mut AutoDocArgs) -> Result<(), Error>
+where
+    I: Iterator<Item = TokenTree>,
+{
+    while let Some(token) = iter.next() {
+        match token {
+            TokenTree::Ident(ident) => {
+                let key = ident.to_string();
 
-pub(crate) fn path_span(path: &syn::Path) -> Span {
-    match path.segments.first() {
-        Some(seg) => seg.ident.span(),
-        None => Span::call_site(),
+                if let Some(TokenTree::Punct(punct)) = iter.peek() {
+                    if punct.as_char() == '=' {
+                        let _ = iter.next();
+                    } else {
+                        return Err(Error::new(ident.span(), "expected `=` after argument name"));
+                    }
+                } else {
+                    return Err(Error::new(ident.span(), "expected `=` after argument name"));
+                }
+
+                match key.as_str() {
+                    "path" => {
+                        if let Some(TokenTree::Literal(lit)) = iter.next() {
+                            let s = lit.to_string();
+                            if s.starts_with('"') && s.ends_with('"') {
+                                if args.path.is_some() {
+                                    return Err(Error::new(
+                                        ident.span(),
+                                        "duplicate `path` argument",
+                                    ));
+                                }
+                                args.path = Some(s.trim_matches('"').to_string());
+                            } else {
+                                return Err(Error::new(lit.span(), "expected string literal"));
+                            }
+                        } else {
+                            return Err(Error::new(
+                                ident.span(),
+                                "expected string literal for `path`",
+                            ));
+                        }
+                    }
+                    "paths" => {
+                        if let Some(next_token) = iter.next() {
+                            match next_token {
+                                TokenTree::Literal(lit) => {
+                                    let s = lit.to_string();
+                                    if s.starts_with('"') && s.ends_with('"') {
+                                        args.paths.push(s.trim_matches('"').to_string());
+                                    } else {
+                                        return Err(Error::new(
+                                            lit.span(),
+                                            "expected string literal",
+                                        ));
+                                    }
+                                }
+                                TokenTree::Group(group)
+                                    if group.delimiter() == proc_macro2::Delimiter::Bracket =>
+                                {
+                                    parse_string_array(&group, &mut args.paths)?;
+                                }
+                                _ => {
+                                    return Err(Error::new(
+                                        next_token.span(),
+                                        "expected string literal or array for `paths`",
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    _ => return Err(Error::new(ident.span(), "unknown auto_doc argument")),
+                }
+
+                if let Some(TokenTree::Punct(punct)) = iter.peek() {
+                    if punct.as_char() == ',' {
+                        let _ = iter.next();
+                    }
+                }
+            }
+            TokenTree::Punct(punct) if punct.as_char() == ',' => {}
+            _ => {
+                return Err(Error::new(
+                    token.span(),
+                    "expected argument name (path or paths)",
+                ))
+            }
+        }
     }
+    Ok(())
 }
 
 pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Error> {
@@ -101,8 +160,17 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
     }
 
     paths.extend(config.paths);
+
+    if has_impl_keyword(&item) {
+        return Err(Error::new(
+            Span::call_site(),
+            "auto_doc: `impl` blocks require the 'advanced' feature with `members = true`",
+        ));
+    }
+
     let ident = get_ident(&item)?;
-    crate::common::expand(paths, &ident, item, Vec::new())
+
+    crate::common::expand(paths, &ident, item, Vec::new(), false)
 }
 
 pub(crate) fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
@@ -133,14 +201,12 @@ pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, 
                         return Ok(name);
                     }
                 }
-                // Supperted impl, but recommened use advanced feature
+                // Unsupported impl, need use advanced feature + members = true
                 "impl" => {
-                    return get_impl_ident(&mut iter).ok_or_else(|| {
-                        Error::new(
-                            Span::call_site(),
-                            "auto_doc: invalid impl block. Or use 'advanced' feature",
-                        )
-                    });
+                    return Err(Error::new(
+                        Span::call_site(),
+                        "auto_doc: `impl` blocks are only supported in 'advanced' mode with `members = true`",
+                    ));
                 }
                 _ => {}
             },
@@ -154,24 +220,40 @@ pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, 
     ))
 }
 
-fn get_impl_ident<I>(iter: &mut std::iter::Peekable<I>) -> Option<Ident>
-where
-    I: Iterator<Item = TokenTree>,
-{
-    let mut first_ident = None;
-
-    while let Some(token) = iter.next() {
+fn parse_string_array(group: &Group, output_paths: &mut Vec<String>) -> Result<(), Error> {
+    for token in group.stream() {
         match token {
-            TokenTree::Ident(ident) if ident == "for" => {
-                return iter.find_map(|token| match token {
-                    TokenTree::Ident(ident) => Some(ident),
-                    _ => None,
-                });
+            TokenTree::Literal(lit) => {
+                let s = lit.to_string();
+                if s.starts_with('"') && s.ends_with('"') {
+                    output_paths.push(s.trim_matches('"').to_string());
+                } else {
+                    return Err(Error::new(
+                        lit.span(),
+                        "expected string literal inside array",
+                    ));
+                }
             }
-            TokenTree::Ident(ident) if first_ident.is_none() => first_ident = Some(ident),
-            _ => {}
+            TokenTree::Punct(punct) if punct.as_char() == ',' => {}
+            _ => {
+                return Err(Error::new(
+                    token.span(),
+                    "expected string literal inside array",
+                ));
+            }
         }
     }
+    Ok(())
+}
 
-    first_ident
+fn has_impl_keyword(item: &TokenStream) -> bool {
+    let tokens: TokenStream2 = item.clone().into();
+
+    tokens.into_iter().any(|token| {
+        if let TokenTree::Ident(ident) = token {
+            ident == "impl"
+        } else {
+            false
+        }
+    })
 }

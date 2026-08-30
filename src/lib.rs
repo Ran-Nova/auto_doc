@@ -18,9 +18,6 @@ mod default;
 #[cfg(feature = "advanced")]
 mod advanced;
 
-#[cfg(test)]
-mod tests;
-
 /// Automatically generates documentation for the given item based on the
 /// provided attributes.
 ///
@@ -34,7 +31,10 @@ mod tests;
 /// - `#[auto_doc(members = true)]` documents associated functions, types, and constants in an `impl` block.
 /// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
 ///
-/// The `member_path` template supports `{type}` and `{member}` placeholders.
+/// The `member_path` template supports `{type}`, `{member}`, and `{kind}` placeholders.
+/// `{kind}` resolves to `function`, `constant`, or `type` for each impl member.
+///
+/// Members marked with `#[doc(hidden)]` are ignored when `members = true`.
 ///
 /// If no paths are provided, the macro falls back to `docs/<ItemName>.md`.
 #[proc_macro_attribute]

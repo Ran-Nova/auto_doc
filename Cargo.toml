@@ -1,6 +1,6 @@
 [package]
 name = "auto_doc"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 authors = ["Ran-Nova <miiabigloli@gmail.com>"]
 description = "A procedural attribute macro to seamlessly pull external Markdown files into your Rust item documentation."
@@ -24,6 +24,9 @@ syn = { version = "3.0.4", default-features = false, features = [
     "parsing",
 ] }
 darling = { version = "0.24.1", optional = true }
+
+[dev-dependencies]
+trybuild = "1.0.120"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.4"
+auto_doc = "0.2.5"
 ```
 
 *I recommend updating **`auto_doc`** in your **`Cargo.toml`** to the **latest** version for stable library operation.*
@@ -36,7 +36,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.3", features = ["advanced"] }
+auto_doc = { version = "0.2.5", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -93,6 +93,8 @@ use auto_doc::auto_doc;
 pub fn complex_function() {}
 ```
 
+> You can use #[auto_doc(paths = "docs/a.md", paths = "docs/b.md")] only on default features, in advanced you see error
+
 ### Documenting impl members
 
 With the `advanced` feature enabled, use `members = true` to load documentation for named items inside an `impl` block. The implementation documentation uses the normal `docs/<Type>.md` path, while member documentation uses `docs/<Type>/<member>.md`:
@@ -129,6 +131,22 @@ impl<T> MyType<T> {
 }
 ```
 
+You can skip individual members from being documented by marking them with `#[doc(hidden)]`:
+
+```rust
+use auto_doc::auto_doc;
+
+#[auto_doc(members = true)]
+impl MyType {
+	#[doc(hidden)]
+	pub fn internal_only() {}
+
+	pub fn public_api() {}
+}
+```
+
+In this case, `internal_only` is ignored by `auto_doc`, while `public_api` is still documented from its matching member file.
+
 ## Supported item kinds
 
 The macro supports item declarations such as:
@@ -140,7 +158,7 @@ The macro supports item declarations such as:
 - `const`
 - `static`
 - `type`
-- `impl`
+- `impl` (available in the `advanced` feature with `members = true`)
 
 ## Notes
 

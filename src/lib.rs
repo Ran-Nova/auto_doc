@@ -12,7 +12,7 @@
 use proc_macro::TokenStream;
 
 mod common;
-#[cfg(any(not(feature = "advanced"), test))]
+#[cfg(not(feature = "advanced"))]
 mod default;
 
 #[cfg(feature = "advanced")]

@@ -1,0 +1,7 @@
+error: auto_doc: `impl` blocks require the 'advanced' feature with `members = true`
+ --> tests/ui/default/fail/generic_self_impl.rs:3:1
+  |
+3 | #[auto_doc]
+  | ^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `auto_doc` (in Nightly builds, run with -Z macro-backtrace for more info)

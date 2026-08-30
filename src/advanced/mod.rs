@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use syn::{
     parse::Parser, parse2 as syn_parse2, punctuated::Punctuated, Attribute, Error, Ident, ImplItem,
-    Item, Lit, LitStr, Token, Type,
+    Item, Lit, LitStr, Meta, Token, Type,
 };
 
 mod error;
@@ -173,21 +173,52 @@ fn advanced_item_ident(item: &Item) -> Result<AdvancedItem, Error> {
             ident: item.sig.ident.clone(),
             is_impl: false,
         }),
-        Item::Impl(item) => match &*item.self_ty {
-            Type::Path(type_path) => type_path
-                .path
-                .segments
-                .last()
-                .map(|segment| AdvancedItem {
-                    ident: segment.ident.clone(),
-                    is_impl: true,
-                })
-                .ok_or_else(|| Error::new(Span::call_site(), "auto_doc: unsupported impl target")),
-            _ => Err(Error::new(
-                Span::call_site(),
-                "auto_doc: unsupported impl target",
-            )),
-        },
+        Item::Impl(item) => {
+            let self_ty = &*item.self_ty;
+            let ident = match self_ty {
+                Type::Path(type_path) => type_path
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.clone())
+                    .ok_or_else(|| {
+                        Error::new(Span::call_site(), "auto_doc: unsupported impl target")
+                    })?,
+                Type::Reference(reference) => match &*reference.elem {
+                    Type::Path(type_path) => type_path
+                        .path
+                        .segments
+                        .last()
+                        .map(|segment| segment.ident.clone())
+                        .ok_or_else(|| {
+                            Error::new(Span::call_site(), "auto_doc: unsupported impl target")
+                        })?,
+                    _ => {
+                        return Err(Error::new(
+                            Span::call_site(),
+                            "auto_doc: unsupported impl target",
+                        ))
+                    }
+                },
+                Type::Tuple(_) => {
+                    return Err(Error::new(
+                        Span::call_site(),
+                        "auto_doc: unsupported impl target",
+                    ))
+                }
+                _ => {
+                    return Err(Error::new(
+                        Span::call_site(),
+                        "auto_doc: unsupported impl target",
+                    ))
+                }
+            };
+
+            Ok(AdvancedItem {
+                ident,
+                is_impl: true,
+            })
+        }
         _ => Err(Error::new(
             Span::call_site(),
             "auto_doc: unsupported item type",
@@ -230,9 +261,10 @@ impl<'a> ImplMember<'a> {
 fn should_skip_member(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
         attr.path().is_ident("doc")
-            && attr
-                .parse_args::<Ident>()
-                .map_or(false, |ident| ident == "hidden")
+            && attr.parse_args::<Meta>().map_or(
+                false,
+                |meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden")),
+            )
     })
 }
 

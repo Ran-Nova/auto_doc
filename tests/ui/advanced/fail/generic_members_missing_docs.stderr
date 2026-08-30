@@ -1,0 +1,5 @@
+error: auto_doc: file not found at `docs/MissingExample/ANSWER.md`
+ --> tests/ui/advanced/fail/generic_members_missing_docs.rs:4:9
+  |
+4 | impl<T> MissingExample<T> {
+  |         ^^^^^^^^^^^^^^

@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
+use proc_macro2::{Group, Literal, Span, TokenStream as TokenStream2, TokenTree};
 use std::iter::Peekable;
-use syn::{parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, Token};
+use syn::{parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, LitStr, Token};
 
 #[derive(Debug)]
 pub(crate) struct AutoDocArgs {
@@ -224,15 +224,7 @@ fn parse_string_array(group: &Group, output_paths: &mut Vec<String>) -> Result<(
     for token in group.stream() {
         match token {
             TokenTree::Literal(lit) => {
-                let s = lit.to_string();
-                if s.starts_with('"') && s.ends_with('"') {
-                    output_paths.push(s.trim_matches('"').to_string());
-                } else {
-                    return Err(Error::new(
-                        lit.span(),
-                        "expected string literal inside array",
-                    ));
-                }
+                output_paths.push(parse_string_literal(&lit)?);
             }
             TokenTree::Punct(punct) if punct.as_char() == ',' => {}
             _ => {
@@ -256,4 +248,11 @@ fn has_impl_keyword(item: &TokenStream) -> bool {
             false
         }
     })
+}
+
+fn parse_string_literal(lit: &Literal) -> Result<String, Error> {
+    let lit = syn::parse_str::<LitStr>(&lit.to_string())
+        .map_err(|_| Error::new(lit.span(), "expected string literal"))?;
+
+    Ok(lit.value())
 }

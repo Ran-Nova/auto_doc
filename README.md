@@ -12,10 +12,10 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.5"
+auto_doc = "0.2.6"
 ```
 
-*I recommend updating **`auto_doc`** in your **`Cargo.toml`** to the **latest** version for stable library operation.*
+*I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
 
 ## Features
 
@@ -23,10 +23,10 @@ auto_doc = "0.2.5"
 
 The default mode has no optional parser dependencies. It supports:
 
-- `#[auto_doc]`;
-- `path = "..."`;
-- repeated `paths = "..."` arguments;
-- positional paths such as `#[auto_doc("docs/api.md")]`.
+* `#[auto_doc]`;
+* `path = "..."`;
+* repeated `paths = "..."` arguments;
+* positional paths such as `#[auto_doc("docs/api.md")]`.
 
 ### `advanced`
 
@@ -36,7 +36,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.5", features = ["advanced"] }
+auto_doc = { version = "0.2.6", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -67,6 +67,8 @@ use auto_doc::auto_doc;
 pub type MyType;
 ```
 
+> Note: The singular `path = "..."` argument cannot be repeated. To specify multiple files, use the `paths` syntax instead.
+
 ### Single file
 
 ```rust
@@ -93,11 +95,11 @@ use auto_doc::auto_doc;
 pub fn complex_function() {}
 ```
 
-> You can use #[auto_doc(paths = "docs/a.md", paths = "docs/b.md")] only on default features, in advanced you see error
+> Note: The repeated `paths = "..."` syntax is supported only in `default` feature. In `advanced` feature, you must use the array syntax (`paths = [...]`).
 
 ### Documenting impl members
 
-With the `advanced` feature enabled, use `members = true` to load documentation for named items inside an `impl` block. The implementation documentation uses the normal `docs/<Type>.md` path, while member documentation uses `docs/<Type>/<member>.md`:
+With the `advanced` feature enabled, use `members = true` to load documentation for named items inside an `impl` block. Member documentation uses the `docs/<Type>/<member>.md` path:
 
 ```rust
 use auto_doc::auto_doc;
@@ -108,12 +110,13 @@ impl<T> MyType<T> {
 }
 ```
 
-This example expects the following files:
+This example expects the following file:
 
 ```text
-docs/MyType.md
 docs/MyType/value.md
 ```
+
+`docs/MyType.md` is ignored because `#[doc]` attributes have no effect on `impl` blocks.
 
 The option applies to associated functions, types, and constants. It must be used on an `impl` block and is available only in `advanced` mode.
 
@@ -151,24 +154,24 @@ In this case, `internal_only` is ignored by `auto_doc`, while `public_api` is st
 
 The macro supports item declarations such as:
 
-- `struct`
-- `enum`
-- `trait`
-- `fn`
-- `const`
-- `static`
-- `type`
-- `impl` (available in the `advanced` feature with `members = true`)
+* `struct`
+* `enum`
+* `trait`
+* `fn`
+* `const`
+* `static`
+* `type`
+* `impl` (available in the `advanced` feature with `members = true`)
 
 ## Notes
 
-- Paths are resolved relative to the crate root by default.
-- Absolute paths are also accepted.
-- The macro reads the Markdown files at compile time and embeds them into the generated doc text.
-- Ignores #[] blocks (this is because of proc_macro_(derive/attribute)) (0.2.4 or later)
+* Paths are resolved relative to the crate root by default.
+* Absolute paths are also accepted.
+* The macro reads the Markdown files at compile time and embeds them into the generated doc text.
+* Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
 
 ## Why use it
 
-- keep documentation outside source files;
-- easier to maintain long docs;
-- works naturally with Rust documentation tooling.
+* keep documentation outside source files;
+* easier to maintain long docs;
+* works naturally with Rust documentation tooling.

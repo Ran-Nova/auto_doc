@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Group, Literal, Span, TokenStream as TokenStream2, TokenTree};
+use proc_macro2::{Delimiter, Group, Literal, Span, TokenStream as TokenStream2, TokenTree};
 use std::iter::Peekable;
 use syn::{parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, LitStr, Token};
 
@@ -83,18 +83,10 @@ where
                 match key.as_str() {
                     "path" => {
                         if let Some(TokenTree::Literal(lit)) = iter.next() {
-                            let s = lit.to_string();
-                            if s.starts_with('"') && s.ends_with('"') {
-                                if args.path.is_some() {
-                                    return Err(Error::new(
-                                        ident.span(),
-                                        "duplicate `path` argument",
-                                    ));
-                                }
-                                args.path = Some(s.trim_matches('"').to_string());
-                            } else {
-                                return Err(Error::new(lit.span(), "expected string literal"));
+                            if args.path.is_some() {
+                                return Err(Error::new(ident.span(), "duplicate `path` argument"));
                             }
+                            args.path = Some(parse_string_literal(&lit)?);
                         } else {
                             return Err(Error::new(
                                 ident.span(),
@@ -106,18 +98,10 @@ where
                         if let Some(next_token) = iter.next() {
                             match next_token {
                                 TokenTree::Literal(lit) => {
-                                    let s = lit.to_string();
-                                    if s.starts_with('"') && s.ends_with('"') {
-                                        args.paths.push(s.trim_matches('"').to_string());
-                                    } else {
-                                        return Err(Error::new(
-                                            lit.span(),
-                                            "expected string literal",
-                                        ));
-                                    }
+                                    args.paths.push(parse_string_literal(&lit)?);
                                 }
                                 TokenTree::Group(group)
-                                    if group.delimiter() == proc_macro2::Delimiter::Bracket =>
+                                    if group.delimiter() == Delimiter::Bracket =>
                                 {
                                     parse_string_array(&group, &mut args.paths)?;
                                 }

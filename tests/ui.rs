@@ -15,6 +15,12 @@ fn prepare_trybuild_docs() {
     .unwrap();
 
     fs::write(
+        docs_dir.join("example2.md"),
+        "# Example 2\n\nThis is a default-mode example2 document.\n",
+    )
+    .unwrap();
+
+    fs::write(
         docs_dir.join("Example/ANSWER.md"),
         "# ANSWER\n\nThe answer for the example constant.\n",
     )

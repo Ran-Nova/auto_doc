@@ -5,7 +5,7 @@ trait Trait {
     fn hello();
 }
 
-#[auto_doc(members = true, member_path = "docs/{type}/{member}.md")]
+#[auto_doc(members = true)]
 impl<T> Trait for Example<T> {
     const ANSWER: u8 = 42;
 

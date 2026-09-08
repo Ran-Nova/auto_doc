@@ -1,11 +1,9 @@
 use auto_doc::auto_doc;
 
-trait Trait {
-    fn hello();
-}
-
 #[auto_doc(members = true)]
-impl Trait for &Example {
+impl Example {
+    const ANSWER: u8 = 42;
+
     fn hello() {}
 }
 

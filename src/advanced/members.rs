@@ -1,7 +1,10 @@
 use super::AutoDocArgs;
-use crate::common::load_documentation;
-use proc_macro2::Ident;
-use syn::{parse_quote, Attribute, Error, ImplItem, Item, Meta, TraitItem, Variant};
+use crate::common::{load_documentation, LoadedDocumentation};
+use proc_macro2::{Ident, Span};
+use syn::{
+    parse_quote_spanned, spanned::Spanned, Attribute, Error, ImplItem, Item, Meta, TraitItem,
+    Variant,
+};
 
 #[derive(Debug, Clone, Copy)]
 enum MemberKind {
@@ -34,6 +37,11 @@ pub(crate) fn load_members(
                     ident,
                     &member_name,
                     MemberKind::Field,
+                    member
+                        .ident
+                        .as_ref()
+                        .map(Ident::span)
+                        .unwrap_or_else(|| member.ty.span()),
                     &mut member.attrs,
                     config,
                     additional_paths,
@@ -50,6 +58,7 @@ pub(crate) fn load_members(
                     ident,
                     &member_info.ident.to_string(),
                     member_info.kind,
+                    member_info.ident.span(),
                     member_info.item.attrs_mut(),
                     config,
                     additional_paths,
@@ -66,6 +75,7 @@ pub(crate) fn load_members(
                     ident,
                     &member_info.ident.to_string(),
                     member_info.kind,
+                    member_info.ident.span(),
                     member_info.item.attrs_mut(),
                     config,
                     additional_paths,
@@ -82,6 +92,7 @@ pub(crate) fn load_members(
                     ident,
                     &member_info.ident.to_string(),
                     member_info.kind,
+                    member_info.ident.span(),
                     &mut member_info.item.attrs,
                     config,
                     additional_paths,
@@ -172,6 +183,7 @@ fn load_member_documentation(
     ident: &Ident,
     member_ident: &str,
     kind: MemberKind,
+    span: Span,
     attrs: &mut Vec<Attribute>,
     config: &AutoDocArgs,
     additional_paths: &mut Vec<String>,
@@ -183,9 +195,16 @@ fn load_member_documentation(
         .replace("{type}", &ident.to_string())
         .replace("{member}", member_ident)
         .replace("{kind}", kind.as_str());
+
     let member_files = vec![member_path];
-    let (member_doc, member_paths) = load_documentation(&member_files, ident.span())?;
-    attrs.push(parse_quote!(#[doc = #member_doc]));
+
+    let LoadedDocumentation {
+        markdown: member_doc,
+        absolute_paths: member_paths,
+    } = load_documentation(&member_files, ident.span())?;
+
+    attrs.push(parse_quote_spanned!(span=> #[doc = #member_doc]));
+
     additional_paths.extend(member_paths);
     Ok(())
 }
@@ -193,10 +212,9 @@ fn load_member_documentation(
 fn should_skip_member(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
         attr.path().is_ident("doc")
-            && attr.parse_args::<Meta>().map_or(
-                false,
-                |meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden")),
-            )
+            && attr
+                .parse_args::<Meta>()
+                .is_ok_and(|meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden")))
     })
 }
 

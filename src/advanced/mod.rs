@@ -57,12 +57,15 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
         .map_err(|error| AdvancedError::Attribute(error.to_string()))?;
 
     let parsed_item: Item = syn_parse2(item.clone().into())?;
+
     validate_advanced_config(&config, &parsed_item)?;
 
     let mut paths = Vec::with_capacity(config.paths.len() + 1);
+
     if let Some(path) = config.path.as_ref() {
         paths.push(path.clone());
     }
+
     paths.extend(config.paths.iter().map(LitStr::value));
 
     let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
@@ -70,6 +73,7 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
 
     if config.members {
         let mut parsed_item = parsed_item;
+
         load_members(&mut parsed_item, &ident, &config, &mut additional_paths)?;
 
         let item_tokens = quote!(#parsed_item).into();

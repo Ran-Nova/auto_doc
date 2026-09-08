@@ -1,0 +1,3 @@
+# ClippyTrait
+
+A test trait.

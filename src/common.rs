@@ -26,8 +26,11 @@ pub(crate) fn expand(
         paths
     };
 
-    let (full_markdown, mut absolute_paths) = if files.is_empty() {
-        (String::new(), Vec::new())
+    let LoadedDocumentation {
+        markdown: full_markdown,
+        mut absolute_paths,
+    } = if files.is_empty() {
+        LoadedDocumentation::default()
     } else {
         load_documentation(&files, ident.span())?
     };
@@ -62,10 +65,16 @@ pub(crate) fn expand(
     .into())
 }
 
+#[derive(Default)]
+pub(crate) struct LoadedDocumentation {
+    pub markdown: String,
+    pub absolute_paths: Vec<String>,
+}
+
 pub(crate) fn load_documentation(
     files: &[String],
     span: Span,
-) -> Result<(String, Vec<String>), Error> {
+) -> Result<LoadedDocumentation, Error> {
     let manifest_dir = var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
     let base_path = Path::new(&manifest_dir);
     let mut contents = Vec::with_capacity(files.len());
@@ -111,5 +120,8 @@ pub(crate) fn load_documentation(
         markdown.push_str("\n\n");
     }
 
-    Ok((markdown, absolute_paths))
+    Ok(LoadedDocumentation {
+        markdown,
+        absolute_paths,
+    })
 }

@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.7"
+auto_doc = "0.2.8"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -36,7 +36,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.7", features = ["advanced"] }
+auto_doc = { version = "0.2.8", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -172,6 +172,7 @@ The macro supports item declarations such as:
 * Paths are resolved relative to the crate root by default.
 * Absolute paths are also accepted.
 * The macro reads the Markdown files at compile time and embeds them into the generated doc text.
+* Since `0.2.8`, Clippy recognizes standard sections such as `# Errors`, `# Panics`, and `# Safety` in generated member documentation.
 * Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
 
 ## Why use it

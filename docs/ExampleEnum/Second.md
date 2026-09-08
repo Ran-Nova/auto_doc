@@ -1,0 +1,3 @@
+# Second
+
+Second variant documentation.

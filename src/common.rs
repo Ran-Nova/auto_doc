@@ -4,6 +4,7 @@ use quote::quote;
 use std::{
     env::var,
     fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
 use syn::{Error, Ident};
@@ -78,7 +79,7 @@ pub(crate) fn load_documentation(
         };
 
         let content = fs::read_to_string(&full_path).map_err(|error| {
-            let detail = if error.kind() == std::io::ErrorKind::NotFound {
+            let detail = if error.kind() == ErrorKind::NotFound {
                 format!("auto_doc: file not found at `{file}`")
             } else {
                 format!("auto_doc: cannot read file `{file}`: {error}")

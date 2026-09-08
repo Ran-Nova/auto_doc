@@ -1,0 +1,3 @@
+# ExampleEnum
+
+Enum documentation.

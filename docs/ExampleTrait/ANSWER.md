@@ -1,0 +1,3 @@
+# ANSWER
+
+Trait constant documentation.

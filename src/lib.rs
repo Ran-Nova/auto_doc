@@ -7,36 +7,46 @@
 //! ## `advanced`
 //!
 //! Enables `darling` and full `syn` AST support.
-//! Provides `members = true` and `member_path` for documenting items inside `impl` blocks.
+//! Provides `members = true` and `member_path` for documenting fields, variants, and inner items.
+//! The advanced parser also supports generic items and implementations.
 
 use proc_macro::TokenStream;
 
 mod common;
-#[cfg(not(feature = "advanced"))]
-mod default;
 
 #[cfg(feature = "advanced")]
 mod advanced;
+#[cfg(not(feature = "advanced"))]
+mod default;
 
 /// Automatically generates documentation for the given item based on the
 /// provided attributes.
 ///
 /// Supported forms:
 /// - `#[auto_doc]` - use `docs/{item}.md`
-/// - `#[auto_doc("docs/Item.md")]` - multiple paths work too
+/// - `#[auto_doc("docs/Item.md")]` - positional paths
 /// - `#[auto_doc(path = "docs/Item.md")]`
 /// - `#[auto_doc(paths = ["docs/A.md", "docs/B.md"])]`
+/// - `#[auto_doc(paths = "docs/A.md", paths = "docs/B.md")]` (only `default` feature)
+///
+/// Positional paths and the array form of `paths` are supported in both feature modes.
+/// Repeating `paths = "..."` is supported only in the `default` feature.
 ///
 /// With the `advanced` feature:
-/// - `#[auto_doc(members = true)]` documents associated functions, types, and constants in an `impl` block.
+/// - `#[auto_doc(members = true)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`.
 /// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
+/// - `members` and `member_path` are valid only with the named-argument syntax.
 ///
 /// The `member_path` template supports `{type}`, `{member}`, and `{kind}` placeholders.
-/// `{kind}` resolves to `function`, `constant`, or `type` for each impl member.
+/// `{kind}` resolves to `field`, `function`, `constant`, `type`, or `variant` for each member.
 ///
 /// Members marked with `#[doc(hidden)]` are ignored when `members = true`.
 ///
-/// If no paths are provided, the macro falls back to `docs/<ItemName>.md`.
+/// If no paths are provided, the macro falls back to `docs/<ItemName>.md` for regular items.
+/// `impl` blocks do not receive an item-level document because Rust does not apply `#[doc]`
+/// attributes to them; their members can still be documented with `members = true`.
+/// For enum variants, the variant itself is documented as one member; tuple or struct fields
+/// inside a variant are not processed separately.
 #[proc_macro_attribute]
 pub fn auto_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     impl_auto_doc(attr, item).unwrap_or_else(|e| e.to_compile_error().into())

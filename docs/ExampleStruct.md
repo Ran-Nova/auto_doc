@@ -1,0 +1,3 @@
+# ExampleStruct
+
+Struct documentation.

@@ -1,0 +1,3 @@
+# ExampleTrait
+
+Trait documentation.

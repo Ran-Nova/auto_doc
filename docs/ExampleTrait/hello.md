@@ -1,0 +1,3 @@
+# hello
+
+Trait function documentation.

@@ -1,0 +1,3 @@
+# Value
+
+Trait type documentation.

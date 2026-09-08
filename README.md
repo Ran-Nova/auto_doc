@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.6"
+auto_doc = "0.2.7"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -21,11 +21,11 @@ auto_doc = "0.2.6"
 
 ### Default
 
-The default mode has no optional parser dependencies. It supports:
+The `default` feature has no optional parser dependencies. It supports:
 
 * `#[auto_doc]`;
 * `path = "..."`;
-* repeated `paths = "..."` arguments;
+* repeated `paths = "..."` arguments; (`advanced` not supported it)
 * positional paths such as `#[auto_doc("docs/api.md")]`.
 
 ### `advanced`
@@ -36,7 +36,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.6", features = ["advanced"] }
+auto_doc = { version = "0.2.7", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -95,11 +95,11 @@ use auto_doc::auto_doc;
 pub fn complex_function() {}
 ```
 
-> Note: The repeated `paths = "..."` syntax is supported only in `default` feature. In `advanced` feature, you must use the array syntax (`paths = [...]`).
+> Note: The `default` feature supports both repeated `paths = "..."` syntax and array syntax (`paths = [...]`), giving you full flexibility.
 
-### Documenting impl members
+### Documenting members
 
-With the `advanced` feature enabled, use `members = true` to load documentation for named items inside an `impl` block. Member documentation uses the `docs/<Type>/<member>.md` path:
+With the `advanced` feature enabled, use `members = true` to load documentation for fields and named items inside a `struct`, `impl`, `trait`, or `enum`. Member documentation uses the `docs/<Type>/<member>.md` path:
 
 ```rust
 use auto_doc::auto_doc;
@@ -116,11 +116,11 @@ This example expects the following file:
 docs/MyType/value.md
 ```
 
-`docs/MyType.md` is ignored because `#[doc]` attributes have no effect on `impl` blocks.
+For traits and enums, the main item documentation is loaded from `docs/<Type>.md` as usual. `docs/MyType.md` is ignored for impl blocks because `#[doc]` attributes have no effect on them.
 
-The option applies to associated functions, types, and constants. It must be used on an `impl` block and is available only in `advanced` mode.
+The option applies to fields in structs, associated functions, types, and constants in impls and traits, and to variants in enums. Tuple struct fields use their numeric index as `{member}`. It is available only in `advanced` mode.
 
-The member path can be customized with the `{type}`, `{member}`, and `{kind}` placeholders. The `{kind}` value is `function`, `constant`, or `type`:
+The member path can be customized with the `{type}`, `{member}`, and `{kind}` placeholders. The `{kind}` value is `field`, `function`, `constant`, `type`, or `variant`:
 
 ```rust
 use auto_doc::auto_doc;
@@ -129,10 +129,14 @@ use auto_doc::auto_doc;
 	members = true,
 	member_path = "reference/{type}/{kind}/{member}.md"
 )]
-impl<T> MyType<T> {
-	pub fn value(&self) {}
+enum MyType {
+	Name,
+	Age,
+	Email
 }
 ```
+
+> Note: Tuple fields in `struct` declarations are also processed and use their numeric index as `{member}`. Tuple or struct fields inside an `enum` variant are not processed separately; only the variant itself is documented.
 
 You can skip individual members from being documented by marking them with `#[doc(hidden)]`:
 
@@ -140,11 +144,11 @@ You can skip individual members from being documented by marking them with `#[do
 use auto_doc::auto_doc;
 
 #[auto_doc(members = true)]
-impl MyType {
+struct MyType {
 	#[doc(hidden)]
-	pub fn internal_only() {}
+	internal_only: (),
 
-	pub fn public_api() {}
+	public_api: (),
 }
 ```
 

@@ -1,13 +1,17 @@
+use crate::common::expand;
 use darling::{ast::NestedMeta, FromMeta};
 use error::AdvancedError;
+use item::{advanced_item_ident, AdvancedItem};
+use members::load_members;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
+use quote::quote;
 use syn::{
-    parse::Parser, parse2 as syn_parse2, punctuated::Punctuated, Attribute, Error, Ident, ImplItem,
-    Item, Lit, LitStr, Meta, Token, Type,
+    parse::Parser, parse2 as syn_parse2, punctuated::Punctuated, Error, Item, Lit, LitStr, Token,
 };
 
 mod error;
+mod item;
+mod members;
 
 #[derive(Debug, FromMeta)]
 struct AutoDocArgs {
@@ -46,13 +50,7 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
         let parsed_item: Item = syn_parse2(item.clone().into())?;
         let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
 
-        return Ok(crate::common::expand(
-            paths,
-            &ident,
-            item,
-            Vec::new(),
-            is_impl,
-        )?);
+        return Ok(expand(paths, &ident, item, Vec::new(), is_impl)?);
     }
 
     let config = AutoDocArgs::from_list(&nested)
@@ -62,49 +60,21 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
     validate_advanced_config(&config, &parsed_item)?;
 
     let mut paths = Vec::with_capacity(config.paths.len() + 1);
-    if let Some(path) = config.path {
-        paths.push(path);
+    if let Some(path) = config.path.as_ref() {
+        paths.push(path.clone());
     }
-    paths.extend(config.paths.into_iter().map(|path| path.value()));
+    paths.extend(config.paths.iter().map(LitStr::value));
 
     let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
     let mut additional_paths = Vec::new();
 
     if config.members {
-        let mut item_impl = match parsed_item {
-            Item::Impl(item_impl) => item_impl,
-            _ => {
-                return Err(AdvancedError::InvalidConfiguration(
-                    "auto_doc: `members = true` requires an impl block",
-                ))
-            }
-        };
+        let mut parsed_item = parsed_item;
+        load_members(&mut parsed_item, &ident, &config, &mut additional_paths)?;
 
-        for member in &mut item_impl.items {
-            let Some(member_info) = ImplMember::from_item(member) else {
-                continue;
-            };
+        let item_tokens = quote!(#parsed_item).into();
 
-            let member_path = config
-                .member_path
-                .as_deref()
-                .unwrap_or("docs/{type}/{member}.md")
-                .replace("{type}", &ident.to_string())
-                .replace("{member}", &member_info.ident.to_string())
-                .replace("{kind}", member_info.kind.as_str());
-            let member_files = vec![member_path];
-            let (member_doc, member_paths) =
-                crate::common::load_documentation(&member_files, ident.span())?;
-            member_info
-                .item
-                .attrs_mut()
-                .push(syn::parse_quote!(#[doc = #member_doc]));
-            additional_paths.extend(member_paths);
-        }
-
-        let item_tokens = quote::quote!(#item_impl).into();
-
-        return Ok(crate::common::expand(
+        return Ok(expand(
             paths,
             &ident,
             item_tokens,
@@ -113,18 +83,7 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
         )?);
     }
 
-    Ok(crate::common::expand(
-        paths,
-        &ident,
-        item,
-        additional_paths,
-        is_impl,
-    )?)
-}
-
-struct AdvancedItem {
-    pub ident: Ident,
-    pub is_impl: bool,
+    Ok(expand(paths, &ident, item, additional_paths, is_impl)?)
 }
 
 fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), AdvancedError> {
@@ -134,162 +93,16 @@ fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), Adv
         ));
     }
 
-    if config.members && !matches!(item, Item::Impl(_)) {
+    if config.members
+        && !matches!(
+            item,
+            Item::Struct(_) | Item::Impl(_) | Item::Trait(_) | Item::Enum(_)
+        )
+    {
         return Err(AdvancedError::InvalidConfiguration(
-            "auto_doc: `members = true` requires an impl block",
+            "auto_doc: `members = true` requires a struct, impl, trait, or enum",
         ));
     }
 
     Ok(())
-}
-
-fn advanced_item_ident(item: &Item) -> Result<AdvancedItem, Error> {
-    match item {
-        Item::Struct(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Enum(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Trait(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Const(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Static(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Type(item) => Ok(AdvancedItem {
-            ident: item.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Fn(item) => Ok(AdvancedItem {
-            ident: item.sig.ident.clone(),
-            is_impl: false,
-        }),
-        Item::Impl(item) => {
-            let self_ty = &*item.self_ty;
-            let ident = match self_ty {
-                Type::Path(type_path) => type_path
-                    .path
-                    .segments
-                    .last()
-                    .map(|segment| segment.ident.clone())
-                    .ok_or_else(|| {
-                        Error::new(Span::call_site(), "auto_doc: unsupported impl target")
-                    })?,
-                Type::Reference(reference) => match &*reference.elem {
-                    Type::Path(type_path) => type_path
-                        .path
-                        .segments
-                        .last()
-                        .map(|segment| segment.ident.clone())
-                        .ok_or_else(|| {
-                            Error::new(Span::call_site(), "auto_doc: unsupported impl target")
-                        })?,
-                    _ => {
-                        return Err(Error::new(
-                            Span::call_site(),
-                            "auto_doc: unsupported impl target",
-                        ))
-                    }
-                },
-                Type::Tuple(_) => {
-                    return Err(Error::new(
-                        Span::call_site(),
-                        "auto_doc: unsupported impl target",
-                    ))
-                }
-                _ => {
-                    return Err(Error::new(
-                        Span::call_site(),
-                        "auto_doc: unsupported impl target",
-                    ))
-                }
-            };
-
-            Ok(AdvancedItem {
-                ident,
-                is_impl: true,
-            })
-        }
-        _ => Err(Error::new(
-            Span::call_site(),
-            "auto_doc: unsupported item type",
-        )),
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ImplMemberKind {
-    Function,
-    Constant,
-    Type,
-}
-
-#[derive(Debug)]
-struct ImplMember<'a> {
-    ident: Ident,
-    kind: ImplMemberKind,
-    item: &'a mut ImplItem,
-}
-
-impl<'a> ImplMember<'a> {
-    fn from_item(item: &'a mut ImplItem) -> Option<Self> {
-        if should_skip_member(item.attrs_mut()) {
-            return None;
-        }
-
-        let (ident, kind) = match item {
-            ImplItem::Const(item) => (item.ident.clone(), ImplMemberKind::Constant),
-            ImplItem::Fn(item) => (item.sig.ident.clone(), ImplMemberKind::Function),
-            ImplItem::Type(item) => (item.ident.clone(), ImplMemberKind::Type),
-            _ => return None,
-        };
-
-        Some(Self { ident, kind, item })
-    }
-}
-
-/// Check attributes for `#[doc(hidden)]`
-fn should_skip_member(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| {
-        attr.path().is_ident("doc")
-            && attr.parse_args::<Meta>().map_or(
-                false,
-                |meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden")),
-            )
-    })
-}
-
-impl ImplMemberKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Function => "function",
-            Self::Constant => "constant",
-            Self::Type => "type",
-        }
-    }
-}
-
-trait ImplItemAttrs {
-    fn attrs_mut(&mut self) -> &mut Vec<Attribute>;
-}
-
-impl ImplItemAttrs for ImplItem {
-    fn attrs_mut(&mut self) -> &mut Vec<Attribute> {
-        match self {
-            ImplItem::Const(item) => &mut item.attrs,
-            ImplItem::Fn(item) => &mut item.attrs,
-            ImplItem::Type(item) => &mut item.attrs,
-            ImplItem::Macro(item) => &mut item.attrs,
-            _ => panic!("auto_doc: unsupported impl item"),
-        }
-    }
 }

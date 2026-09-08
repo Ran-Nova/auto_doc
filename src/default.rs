@@ -1,7 +1,11 @@
+use crate::common::expand;
 use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, Group, Literal, Span, TokenStream as TokenStream2, TokenTree};
 use std::iter::Peekable;
-use syn::{parse::Parser, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, LitStr, Token};
+use syn::{
+    parse::Parser, parse_str, punctuated::Punctuated, Error, Expr, ExprLit, Ident, Lit, LitStr,
+    Token,
+};
 
 #[derive(Debug)]
 pub(crate) struct AutoDocArgs {
@@ -154,7 +158,7 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
 
     let ident = get_ident(&item)?;
 
-    crate::common::expand(paths, &ident, item, Vec::new(), false)
+    expand(paths, &ident, item, Vec::new(), false)
 }
 
 pub(crate) fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
@@ -235,7 +239,7 @@ fn has_impl_keyword(item: &TokenStream) -> bool {
 }
 
 fn parse_string_literal(lit: &Literal) -> Result<String, Error> {
-    let lit = syn::parse_str::<LitStr>(&lit.to_string())
+    let lit = parse_str::<LitStr>(&lit.to_string())
         .map_err(|_| Error::new(lit.span(), "expected string literal"))?;
 
     Ok(lit.value())

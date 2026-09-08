@@ -1,0 +1,3 @@
+# TupleStruct
+
+Tuple struct documentation.

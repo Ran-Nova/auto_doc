@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.11"
+auto_doc = "0.2.12"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -39,7 +39,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.11", features = ["advanced"] }
+auto_doc = { version = "0.2.12", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -123,7 +123,7 @@ docs/MyType/value.md
 
 For traits and enums, the main item documentation is loaded from `docs/<Type>.md` as usual. `docs/MyType.md` is ignored for impl blocks because `#[doc]` attributes have no effect on them.
 
-The option applies to fields in structs, associated functions, types, and constants in impls and traits, and to variants in enums. Tuple struct fields use their numeric index as `{member}`. It is available only in `advanced` mode.
+The option applies to named fields in structs and enum variants, associated functions, types, and constants in impls and traits, and to variants in enums. Unnamed tuple fields are ignored. It is available only in `advanced` mode.
 
 The member path can be customized with the `{source}`, `{docs}`, `{type}`, `{member}`, and
 `{kind}` placeholders. The `{kind}` value is `field`, `function`, `constant`, `type`, or `variant`:
@@ -142,7 +142,7 @@ enum MyType {
 }
 ```
 
-> Note: Tuple fields in `struct` declarations are also processed and use their numeric index as `{member}`. Tuple or struct fields inside an `enum` variant are not processed separately; only the variant itself is documented.
+> Note: Unnamed tuple fields in `struct` declarations and enum variants are not processed separately. Named fields in enum variants use `{member}` values such as `First/value`.
 
 You can skip individual members from being documented by marking them with `#[doc(hidden)]`:
 
@@ -201,6 +201,7 @@ The macro supports item declarations such as:
 * Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
 * Since `0.2.9`, the `advanced` feature supports `{source}` and `source = "folder/sub-folder"`. Automatic paths relative to the source file are not supported. (But there was an attempt to implement it. Config too)
 * Since `0.2.11`, generated documentation uses `///`-equivalent `#[doc]` attributes instead of block comments. Clippy recognizes generated `# Errors`, `# Panics`, and `# Safety` sections without automatic lint suppressions. The problem was with the missing Span, which was fixed in this version
+* Since `0.2.12`, tuple structures are now restricted to named items only (previously all tuple fields were processed sequentially by index). Meanwhile, `enum` variants have also gained support for named tuple items.
 
 ## Why use it
 

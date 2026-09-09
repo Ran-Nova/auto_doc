@@ -51,8 +51,9 @@ mod default;
 /// If no paths are provided, the macro falls back to `docs/<ItemName>.md` for regular items.
 /// `impl` blocks do not receive an item-level document because Rust does not apply `#[doc]`
 /// attributes to them; their members can still be documented with `members`.
-/// For enum variants, the variant itself is documented as one member; tuple or struct fields
-/// inside a variant are not processed separately.
+///
+/// Named fields in `struct` and `enum` variants are processed as members.
+/// Unnamed tuple fields are not processed separately.
 #[proc_macro_attribute]
 pub fn auto_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     impl_auto_doc(attr, item).unwrap_or_else(|e| e.to_compile_error().into())

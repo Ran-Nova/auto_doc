@@ -47,6 +47,14 @@ fn prepare_trybuild_docs() {
             "# Second\n\nSecond variant documentation.\n",
         ),
         (
+            "ExampleEnum/First/value.md",
+            "# value\n\nFirst variant field documentation.\n",
+        ),
+        (
+            "ExampleEnum/Third.md",
+            "# Third\n\nThird variant documentation.\n",
+        ),
+        (
             "ExampleStruct.md",
             "# ExampleStruct\n\nStruct documentation.\n",
         ),
@@ -62,7 +70,6 @@ fn prepare_trybuild_docs() {
             "TupleStruct.md",
             "# TupleStruct\n\nTuple struct documentation.\n",
         ),
-        ("TupleStruct/0.md", "# 0\n\nTuple field documentation.\n"),
         (
             "source/SourceExample.md",
             "# Source example\n\nSource-path item documentation.\n",

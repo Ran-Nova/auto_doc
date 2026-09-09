@@ -11,8 +11,9 @@ trait ExampleTrait {
 
 #[auto_doc(members = true)]
 enum ExampleEnum {
-    First,
+    First { value: u8 },
     Second,
+    Third(u8),
 }
 
 fn main() {}

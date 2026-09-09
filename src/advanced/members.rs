@@ -1,7 +1,7 @@
 use super::AutoDocArgs;
 use crate::common::{documentation_attribute, load_documentation};
 use proc_macro2::{Ident, Span};
-use syn::{spanned::Spanned, Attribute, Error, ImplItem, Item, Meta, TraitItem, Variant};
+use syn::{Attribute, Error, Fields, ImplItem, Item, Meta, TraitItem, Variant};
 
 #[derive(Debug, Clone, Copy)]
 enum MemberKind {
@@ -19,28 +19,25 @@ pub(crate) fn load_members(
 ) -> Result<(), Error> {
     match item {
         Item::Struct(item_struct) => {
-            for (index, member) in item_struct.fields.iter_mut().enumerate() {
-                if should_skip_member(&member.attrs) {
-                    continue;
-                }
+            if let Fields::Named(fields) = &mut item_struct.fields {
+                for member in &mut fields.named {
+                    let Some(member_ident) = &member.ident else {
+                        continue;
+                    };
 
-                let member_name = member
-                    .ident
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| index.to_string());
-                load_member_documentation(
-                    ident,
-                    &member_name,
-                    MemberKind::Field,
-                    member
-                        .ident
-                        .as_ref()
-                        .map(Ident::span)
-                        .unwrap_or_else(|| member.ty.span()),
-                    &mut member.attrs,
-                    config,
-                )?;
+                    if should_skip_member(&member.attrs) {
+                        continue;
+                    }
+
+                    load_member_documentation(
+                        ident,
+                        &member_ident.to_string(),
+                        MemberKind::Field,
+                        member_ident.span(),
+                        &mut member.attrs,
+                        config,
+                    )?;
+                }
             }
         }
         Item::Impl(item_impl) => {
@@ -89,6 +86,28 @@ pub(crate) fn load_members(
                     &mut member_info.item.attrs,
                     config,
                 )?;
+
+                if let Fields::Named(fields) = &mut member_info.item.fields {
+                    for member in &mut fields.named {
+                        let Some(member_ident) = &member.ident else {
+                            continue;
+                        };
+
+                        if should_skip_member(&member.attrs) {
+                            continue;
+                        }
+
+                        let member_name = format!("{}/{}", member_info.ident, member_ident);
+                        load_member_documentation(
+                            ident,
+                            &member_name,
+                            MemberKind::Field,
+                            member_ident.span(),
+                            &mut member.attrs,
+                            config,
+                        )?;
+                    }
+                }
             }
         }
         _ => {

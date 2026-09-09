@@ -1,4 +1,4 @@
-error: auto_doc: file not found at `docs/MissingExample/ANSWER.md`
+error: auto_doc: file not found at `docs/MissingExample/ANSWER.md`. You can use `path = "docs/<ItemName>.md"` to set the base path.
  --> tests/ui/advanced/fail/generic_members_missing_docs.rs:4:9
   |
 4 | impl<T> MissingExample<T> {

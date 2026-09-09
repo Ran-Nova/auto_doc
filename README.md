@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.10"
+auto_doc = "0.2.11"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -27,17 +27,19 @@ The `default` feature has no optional parser dependencies. It supports:
 * `path = "..."`;
 * repeated `paths = "..."` arguments; (`advanced` not supported it)
 * positional paths such as `#[auto_doc("docs/api.md")]`.
-* `source = "..."` - change your path to `docs/{source}/<ItemName>.md`
 
 ### `advanced`
 
 The `advanced` feature enables `darling` for extensible attribute argument parsing and full `syn` AST support. Generic items and implementations such as `impl<T> ... for Type<T>` are handled through the advanced parser.
 
+In addition to the default syntax, this feature supports `source = "..."`,
+`members`, and `member_path`.
+
 Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.10", features = ["advanced"] }
+auto_doc = { version = "0.2.11", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -69,6 +71,8 @@ pub type MyType;
 ```
 
 > Note: The singular `path = "..."` argument cannot be repeated. To specify multiple files, use the `paths` syntax instead.
+>
+> If you use `advanced` feature - you can use `source = "api"` for find `MyType.md` in `docs/api`
 
 ### Single file
 
@@ -156,7 +160,7 @@ struct MyType {
 
 In this case, `internal_only` is ignored by `auto_doc`, while `public_api` is still documented from its matching member file.
 
-You can use `source = "..."` on `members` (or single path/s)
+You can use `source = "..."` with `members` (`advanced` feature only):
 
 ```rust
 use auto_doc::auto_doc;
@@ -195,9 +199,8 @@ The macro supports item declarations such as:
 * Absolute paths are also accepted.
 * The macro reads the Markdown files at compile time and embeds them into the generated doc text.
 * Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
-* Since `0.2.8`, generated documentation with `# Errors`, `# Panics`, or `# Safety` suppresses the corresponding Clippy false positive, exclide for `async fn`.
-* Since `0.2.9`, you can use `{source}` and `source = "folder/sub-folder`. Automatic path relative to file could not be implemented (but an attempt was made)
-* Since `0.2.10`, if the generated documentation has `# Errors`, `# Panics`, or `# Safety`, the macro adds `#[allow(clippy::missing_errors_doc)]`, `#[allow(clippy::missing_panics_doc)]`, or `#[allow(clippy::missing_safety_doc)]` respectively. Clippy, stop, i have it tags.
+* Since `0.2.9`, the `advanced` feature supports `{source}` and `source = "folder/sub-folder"`. Automatic paths relative to the source file are not supported. (But there was an attempt to implement it. Config too)
+* Since `0.2.11`, generated documentation uses `///`-equivalent `#[doc]` attributes instead of block comments. Clippy recognizes generated `# Errors`, `# Panics`, and `# Safety` sections without automatic lint suppressions. The problem was with the missing Span, which was fixed in this version
 
 ## Why use it
 

@@ -21,10 +21,11 @@ mod default;
 
 /// Automatically generates documentation for the given item based on the
 /// provided attributes.
+/// Generated documentation is attached to the item so rustdoc and Clippy can
+/// process sections such as `# Errors`, `# Panics`, and `# Safety` normally.
 ///
-/// Supported forms:
+/// Supported in both feature modes:
 /// - `#[auto_doc]` - use `docs/{item}.md`
-/// - `#[auto_doc(source = "api")]` - docs/api/{item}.md
 /// - `#[auto_doc("docs/Item.md")]` - positional paths
 /// - `#[auto_doc(path = "docs/Item.md")]`
 /// - `#[auto_doc(paths = ["docs/A.md", "docs/B.md"])]`
@@ -34,8 +35,8 @@ mod default;
 /// Repeating `paths = "..."` is supported only in the `default` feature.
 ///
 /// With the `advanced` feature:
+/// - `#[auto_doc(source = "api")]` uses `docs/api/{item}.md` as the default item path.
 /// - `#[auto_doc(members)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`.
-/// - `source = "folder/sub-folder"` prefixes the default item path and supplies `{source}` to `member_path`.
 /// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
 /// - `source = "folder/sub-folder"` prefixes the default item path and supplies `{source}` to `member_path`.
 /// - `members` and `member_path` are valid only with the named-argument syntax.

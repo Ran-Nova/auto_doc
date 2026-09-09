@@ -1,8 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
-use quote::quote;
-#[cfg(feature = "advanced")]
-use quote::quote_spanned;
+use quote::{quote, quote_spanned};
 use std::{
     env::var,
     fs,
@@ -49,26 +47,10 @@ pub(crate) fn expand(
     let doc_attr = if files.is_empty() {
         quote! {}
     } else {
-        documentation_attribute_tokens(&files, &documentation)
+        documentation_attribute_tokens(&files, &documentation, ident.span())
     };
-
-    let has_section = |section: &str| {
-        documentation
-            .iter()
-            .any(|content| content.lines().any(|line| line.trim() == section))
-    };
-
-    let errors_lint_attr =
-        has_section("# Errors").then(|| quote! { #[allow(clippy::missing_errors_doc)] });
-    let panics_lint_attr =
-        has_section("# Panics").then(|| quote! { #[allow(clippy::missing_panics_doc)] });
-    let safety_lint_attr =
-        has_section("# Safety").then(|| quote! { #[allow(clippy::missing_safety_doc)] });
 
     Ok(quote! {
-        #errors_lint_attr
-        #panics_lint_attr
-        #safety_lint_attr
         #doc_attr
         #input_tokens
     }
@@ -80,32 +62,48 @@ pub(crate) fn documentation_attribute(
     files: &[String],
     contents: &[String],
     span: Span,
-) -> Attribute {
-    let joined_files = files.join(", ");
-    let documentation = Literal::string(&format!(
-        "Documentation pulled from: `{joined_files}`\n\n{}",
-        contents.join("\n\n")
-    ));
-
-    Attribute::parse_outer
-        .parse2(quote_spanned! {
-        span=> #[doc = #documentation]
-        })
-        .expect("auto_doc: generated documentation attribute should parse")
+) -> Vec<Attribute> {
+    documentation_lines(files, contents)
         .into_iter()
-        .next()
-        .expect("auto_doc: generated documentation attribute is missing")
+        .map(|line| {
+            Attribute::parse_outer
+                .parse2(quote_spanned! {
+                    span=> #[doc = #line]
+                })
+                .expect("auto_doc: generated documentation attribute should parse")
+                .into_iter()
+                .next()
+                .expect("auto_doc: generated documentation attribute is missing")
+        })
+        .collect()
 }
 
-fn documentation_attribute_tokens(files: &[String], contents: &[String]) -> TokenStream2 {
+fn documentation_lines(files: &[String], contents: &[String]) -> Vec<Literal> {
     let joined_files = files.join(", ");
-    let documentation = Literal::string(&format!(
+    format!(
         "Documentation pulled from: `{joined_files}`\n\n{}",
         contents.join("\n\n")
-    ));
+    )
+    .lines()
+    .map(|line| {
+        if line.is_empty() {
+            Literal::string("")
+        } else {
+            Literal::string(&format!(" {line}"))
+        }
+    })
+    .collect()
+}
 
-    quote! {
-        #[doc = #documentation]
+fn documentation_attribute_tokens(
+    files: &[String],
+    contents: &[String],
+    span: Span,
+) -> TokenStream2 {
+    let documentation = documentation_lines(files, contents);
+
+    quote_spanned! { span=>
+        #(#[doc = #documentation])*
     }
 }
 
@@ -132,7 +130,7 @@ pub(crate) fn load_documentation(
         let content = fs::read_to_string(&full_path).map_err(|error| {
             let detail = if error.kind() == ErrorKind::NotFound {
                 format!(
-                    "auto_doc: file not found at `{file}`. You can use `source = \"folder-name\"` to set the base path."
+                    "auto_doc: file not found at `{file}`. You can use `path = \"docs/<ItemName>.md\"` to set the base path."
                 )
             } else {
                 format!("auto_doc: cannot read file `{file}`: {error}")

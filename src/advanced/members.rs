@@ -210,7 +210,7 @@ fn load_member_documentation(
 
     let member_contents = load_documentation(&member_files, ident.span())?.contents;
 
-    attrs.push(documentation_attribute(
+    attrs.extend(documentation_attribute(
         &member_files,
         &member_contents,
         span,

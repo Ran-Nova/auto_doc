@@ -37,22 +37,38 @@ pub(crate) fn expand(
         paths
     };
 
-    let absolute_paths = if files.is_empty() {
+    let documentation = if files.is_empty() {
         LoadedDocumentation::default()
     } else {
         load_documentation(&files, ident.span())?
     }
-    .absolute_paths;
+    .contents;
 
     let input_tokens: TokenStream2 = item.into();
 
     let doc_attr = if files.is_empty() {
         quote! {}
     } else {
-        documentation_attribute_tokens(&files, &absolute_paths)
+        documentation_attribute_tokens(&files, &documentation)
     };
 
+    let has_section = |section: &str| {
+        documentation
+            .iter()
+            .any(|content| content.lines().any(|line| line.trim() == section))
+    };
+
+    let errors_lint_attr =
+        has_section("# Errors").then(|| quote! { #[allow(clippy::missing_errors_doc)] });
+    let panics_lint_attr =
+        has_section("# Panics").then(|| quote! { #[allow(clippy::missing_panics_doc)] });
+    let safety_lint_attr =
+        has_section("# Safety").then(|| quote! { #[allow(clippy::missing_safety_doc)] });
+
     Ok(quote! {
+        #errors_lint_attr
+        #panics_lint_attr
+        #safety_lint_attr
         #doc_attr
         #input_tokens
     }
@@ -62,17 +78,18 @@ pub(crate) fn expand(
 #[cfg(feature = "advanced")]
 pub(crate) fn documentation_attribute(
     files: &[String],
-    absolute_paths: &[String],
+    contents: &[String],
     span: Span,
 ) -> Attribute {
     let joined_files = files.join(", ");
-    let header = Literal::string(&format!(
-        "📖 Documentation pulled from: `{joined_files}`\n\n"
+    let documentation = Literal::string(&format!(
+        "Documentation pulled from: `{joined_files}`\n\n{}",
+        contents.join("\n\n")
     ));
 
     Attribute::parse_outer
         .parse2(quote_spanned! {
-        span=> #[doc = concat!(#header, #(include_str!(#absolute_paths), "\n\n"),*)]
+        span=> #[doc = #documentation]
         })
         .expect("auto_doc: generated documentation attribute should parse")
         .into_iter()
@@ -80,20 +97,21 @@ pub(crate) fn documentation_attribute(
         .expect("auto_doc: generated documentation attribute is missing")
 }
 
-fn documentation_attribute_tokens(files: &[String], absolute_paths: &[String]) -> TokenStream2 {
+fn documentation_attribute_tokens(files: &[String], contents: &[String]) -> TokenStream2 {
     let joined_files = files.join(", ");
-    let header = Literal::string(&format!(
-        "📖 Documentation pulled from: `{joined_files}`\n\n"
+    let documentation = Literal::string(&format!(
+        "Documentation pulled from: `{joined_files}`\n\n{}",
+        contents.join("\n\n")
     ));
 
     quote! {
-        #[doc = concat!(#header, #(include_str!(#absolute_paths), "\n\n"),*)]
+        #[doc = #documentation]
     }
 }
 
 #[derive(Default)]
 pub(crate) struct LoadedDocumentation {
-    pub absolute_paths: Vec<String>,
+    pub contents: Vec<String>,
 }
 
 pub(crate) fn load_documentation(
@@ -102,7 +120,7 @@ pub(crate) fn load_documentation(
 ) -> Result<LoadedDocumentation, Error> {
     let manifest_dir = var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
     let base_path = Path::new(&manifest_dir);
-    let mut absolute_paths = Vec::with_capacity(files.len());
+    let mut contents = Vec::with_capacity(files.len());
 
     for file in files {
         let full_path = if Path::new(file).is_absolute() {
@@ -111,7 +129,7 @@ pub(crate) fn load_documentation(
             base_path.join(file)
         };
 
-        fs::read_to_string(&full_path).map_err(|error| {
+        let content = fs::read_to_string(&full_path).map_err(|error| {
             let detail = if error.kind() == ErrorKind::NotFound {
                 format!(
                     "auto_doc: file not found at `{file}`. You can use `source = \"folder-name\"` to set the base path."
@@ -122,13 +140,8 @@ pub(crate) fn load_documentation(
             Error::new(span, detail)
         })?;
 
-        absolute_paths.push(
-            full_path
-                .to_str()
-                .ok_or_else(|| Error::new(span, format!("auto_doc: non-UTF8 path `{file}`")))?
-                .to_owned(),
-        );
+        contents.push(content);
     }
 
-    Ok(LoadedDocumentation { absolute_paths })
+    Ok(LoadedDocumentation { contents })
 }

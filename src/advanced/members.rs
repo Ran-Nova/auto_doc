@@ -208,9 +208,13 @@ fn load_member_documentation(
 
     let member_files = vec![member_path];
 
-    let member_paths = load_documentation(&member_files, ident.span())?.absolute_paths;
+    let member_contents = load_documentation(&member_files, ident.span())?.contents;
 
-    attrs.push(documentation_attribute(&member_files, &member_paths, span));
+    attrs.push(documentation_attribute(
+        &member_files,
+        &member_contents,
+        span,
+    ));
 
     Ok(())
 }

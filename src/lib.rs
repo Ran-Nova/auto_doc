@@ -24,6 +24,7 @@ mod default;
 ///
 /// Supported forms:
 /// - `#[auto_doc]` - use `docs/{item}.md`
+/// - `#[auto_doc(source = "api")]` - docs/api/{item}.md
 /// - `#[auto_doc("docs/Item.md")]` - positional paths
 /// - `#[auto_doc(path = "docs/Item.md")]`
 /// - `#[auto_doc(paths = ["docs/A.md", "docs/B.md"])]`

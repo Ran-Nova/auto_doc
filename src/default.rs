@@ -152,13 +152,13 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
     if has_impl_keyword(&item) {
         return Err(Error::new(
             Span::call_site(),
-            "auto_doc: `impl` blocks require the 'advanced' feature with `members = true`",
+            "auto_doc: `impl` blocks require the 'advanced' feature with `members`",
         ));
     }
 
     let ident = get_ident(&item)?;
 
-    expand(paths, &ident, item, Vec::new(), false)
+    expand(paths, &ident, item, false, None)
 }
 
 pub(crate) fn get_ident(item: &TokenStream) -> Result<Ident, Error> {
@@ -189,11 +189,11 @@ pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, 
                         return Ok(name);
                     }
                 }
-                // Unsupported impl, need use advanced feature + members = true
+                // Unsupported impl, need use advanced mode with members
                 "impl" => {
                     return Err(Error::new(
                         Span::call_site(),
-                        "auto_doc: `impl` blocks are only supported in 'advanced' mode with `members = true`",
+                        "auto_doc: `impl` blocks are only supported in 'advanced' mode with `members`",
                     ));
                 }
                 _ => {}

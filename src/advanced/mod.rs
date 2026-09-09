@@ -23,6 +23,8 @@ struct AutoDocArgs {
     members: bool,
     #[darling(default)]
     member_path: Option<String>,
+    #[darling(default)]
+    source: Option<String>,
 }
 
 pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, Error> {
@@ -50,7 +52,7 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
         let parsed_item: Item = syn_parse2(item.clone().into())?;
         let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
 
-        return Ok(expand(paths, &ident, item, Vec::new(), is_impl)?);
+        return Ok(expand(paths, &ident, item, is_impl, None)?);
     }
 
     let config = AutoDocArgs::from_list(&nested)
@@ -69,12 +71,10 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
     paths.extend(config.paths.iter().map(LitStr::value));
 
     let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
-    let mut additional_paths = Vec::new();
-
     if config.members {
         let mut parsed_item = parsed_item;
 
-        load_members(&mut parsed_item, &ident, &config, &mut additional_paths)?;
+        load_members(&mut parsed_item, &ident, &config)?;
 
         let item_tokens = quote!(#parsed_item).into();
 
@@ -82,18 +82,24 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
             paths,
             &ident,
             item_tokens,
-            additional_paths,
             is_impl,
+            config.source.as_deref(),
         )?);
     }
 
-    Ok(expand(paths, &ident, item, additional_paths, is_impl)?)
+    Ok(expand(
+        paths,
+        &ident,
+        item,
+        is_impl,
+        config.source.as_deref(),
+    )?)
 }
 
 fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), AdvancedError> {
     if config.member_path.is_some() && !config.members {
         return Err(AdvancedError::InvalidConfiguration(
-            "auto_doc: `member_path` requires `members = true`",
+            "auto_doc: `member_path` requires `members`",
         ));
     }
 
@@ -104,7 +110,7 @@ fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), Adv
         )
     {
         return Err(AdvancedError::InvalidConfiguration(
-            "auto_doc: `members = true` requires a struct, impl, trait, or enum",
+            "auto_doc: `members` requires a struct, impl, trait, or enum",
         ));
     }
 

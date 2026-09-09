@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.8"
+auto_doc = "0.2.9"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -27,6 +27,7 @@ The `default` feature has no optional parser dependencies. It supports:
 * `path = "..."`;
 * repeated `paths = "..."` arguments; (`advanced` not supported it)
 * positional paths such as `#[auto_doc("docs/api.md")]`.
+* `source = "..."` - change your path to `docs/{source}/<ItemName>.md`
 
 ### `advanced`
 
@@ -36,7 +37,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.8", features = ["advanced"] }
+auto_doc = { version = "0.2.9", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -99,12 +100,12 @@ pub fn complex_function() {}
 
 ### Documenting members
 
-With the `advanced` feature enabled, use `members = true` to load documentation for fields and named items inside a `struct`, `impl`, `trait`, or `enum`. Member documentation uses the `docs/<Type>/<member>.md` path:
+With the `advanced` feature enabled, use `members` to load documentation for fields and named items inside a `struct`, `impl`, `trait`, or `enum`. The equivalent `members = true` form remains supported. Member documentation uses the `docs/<Type>/<member>.md` path:
 
 ```rust
 use auto_doc::auto_doc;
 
-#[auto_doc(members = true)]
+#[auto_doc(members)]
 impl<T> MyType<T> {
 	pub fn value(&self) {}
 }
@@ -120,13 +121,14 @@ For traits and enums, the main item documentation is loaded from `docs/<Type>.md
 
 The option applies to fields in structs, associated functions, types, and constants in impls and traits, and to variants in enums. Tuple struct fields use their numeric index as `{member}`. It is available only in `advanced` mode.
 
-The member path can be customized with the `{type}`, `{member}`, and `{kind}` placeholders. The `{kind}` value is `field`, `function`, `constant`, `type`, or `variant`:
+The member path can be customized with the `{source}`, `{docs}`, `{type}`, `{member}`, and
+`{kind}` placeholders. The `{kind}` value is `field`, `function`, `constant`, `type`, or `variant`:
 
 ```rust
 use auto_doc::auto_doc;
 
 #[auto_doc(
-	members = true,
+	members,
 	member_path = "reference/{type}/{kind}/{member}.md"
 )]
 enum MyType {
@@ -143,7 +145,7 @@ You can skip individual members from being documented by marking them with `#[do
 ```rust
 use auto_doc::auto_doc;
 
-#[auto_doc(members = true)]
+#[auto_doc(members)]
 struct MyType {
 	#[doc(hidden)]
 	internal_only: (),
@@ -153,6 +155,26 @@ struct MyType {
 ```
 
 In this case, `internal_only` is ignored by `auto_doc`, while `public_api` is still documented from its matching member file.
+
+You can use `source = "..."` on `members` (or single path/s)
+
+```rust
+use auto_doc::auto_doc;
+
+#[auto_doc(members, source = "api")]
+trait MyTrait {
+	pub fn get() {}
+	pub fn set() {}
+}
+```
+
+This example expects the following file:
+
+```text
+docs/api/MyTrait.md
+docs/api/MyTrait/get.md
+docs/api/MyTrait/set.md
+```
 
 ## Supported item kinds
 
@@ -165,15 +187,16 @@ The macro supports item declarations such as:
 * `const`
 * `static`
 * `type`
-* `impl` (available in the `advanced` feature with `members = true`)
+* `impl` (available in the `advanced` feature with `members`)
 
 ## Notes
 
 * Paths are resolved relative to the crate root by default.
 * Absolute paths are also accepted.
 * The macro reads the Markdown files at compile time and embeds them into the generated doc text.
-* Since `0.2.8`, Clippy recognizes standard sections such as `# Errors`, `# Panics`, and `# Safety` in generated member documentation.
 * Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
+* Since `0.2.8`, Clippy recognizes standard sections such as `# Errors`, `# Panics`, and `# Safety` in generated member documentation.
+* Since `0.2.9`, you can use `{source}` and `source = "folder/sub-folder`. Automatic path relative to file could not be implemented (but an attempt was made)
 
 ## Why use it
 

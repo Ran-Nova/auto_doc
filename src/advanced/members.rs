@@ -1,10 +1,7 @@
 use super::AutoDocArgs;
-use crate::common::{load_documentation, LoadedDocumentation};
+use crate::common::{documentation_attribute, load_documentation};
 use proc_macro2::{Ident, Span};
-use syn::{
-    parse_quote_spanned, spanned::Spanned, Attribute, Error, ImplItem, Item, Meta, TraitItem,
-    Variant,
-};
+use syn::{spanned::Spanned, Attribute, Error, ImplItem, Item, Meta, TraitItem, Variant};
 
 #[derive(Debug, Clone, Copy)]
 enum MemberKind {
@@ -19,7 +16,6 @@ pub(crate) fn load_members(
     item: &mut Item,
     ident: &Ident,
     config: &AutoDocArgs,
-    additional_paths: &mut Vec<String>,
 ) -> Result<(), Error> {
     match item {
         Item::Struct(item_struct) => {
@@ -44,7 +40,6 @@ pub(crate) fn load_members(
                         .unwrap_or_else(|| member.ty.span()),
                     &mut member.attrs,
                     config,
-                    additional_paths,
                 )?;
             }
         }
@@ -61,7 +56,6 @@ pub(crate) fn load_members(
                     member_info.ident.span(),
                     member_info.item.attrs_mut(),
                     config,
-                    additional_paths,
                 )?;
             }
         }
@@ -78,7 +72,6 @@ pub(crate) fn load_members(
                     member_info.ident.span(),
                     member_info.item.attrs_mut(),
                     config,
-                    additional_paths,
                 )?;
             }
         }
@@ -95,14 +88,13 @@ pub(crate) fn load_members(
                     member_info.ident.span(),
                     &mut member_info.item.attrs,
                     config,
-                    additional_paths,
                 )?;
             }
         }
         _ => {
             return Err(Error::new(
                 ident.span(),
-                "auto_doc: `members = true` requires a struct, impl, trait, or enum",
+                "auto_doc: `members` requires a struct, impl, trait, or enum",
             ))
         }
     }
@@ -186,26 +178,40 @@ fn load_member_documentation(
     span: Span,
     attrs: &mut Vec<Attribute>,
     config: &AutoDocArgs,
-    additional_paths: &mut Vec<String>,
 ) -> Result<(), Error> {
+    let configured_member_path = config.member_path.as_deref();
+    if config.source.is_none()
+        && configured_member_path.is_some_and(|path| path.contains("{source}"))
+    {
+        return Err(Error::new(
+            span,
+            "auto_doc: `member_path` contains `{source}`, but `source` was not provided",
+        ));
+    }
+
     let member_path = config
         .member_path
         .as_deref()
-        .unwrap_or("docs/{type}/{member}.md")
+        .or_else(|| {
+            config
+                .source
+                .as_deref()
+                .filter(|source| !source.is_empty())
+                .map(|_| "{docs}/{source}/{type}/{member}.md")
+        })
+        .unwrap_or("{docs}/{type}/{member}.md")
+        .replace("{source}", config.source.as_deref().unwrap_or(""))
+        .replace("{docs}", "docs")
         .replace("{type}", &ident.to_string())
         .replace("{member}", member_ident)
         .replace("{kind}", kind.as_str());
 
     let member_files = vec![member_path];
 
-    let LoadedDocumentation {
-        markdown: member_doc,
-        absolute_paths: member_paths,
-    } = load_documentation(&member_files, ident.span())?;
+    let member_paths = load_documentation(&member_files, ident.span())?.absolute_paths;
 
-    attrs.push(parse_quote_spanned!(span=> #[doc = #member_doc]));
+    attrs.push(documentation_attribute(&member_files, &member_paths, span));
 
-    additional_paths.extend(member_paths);
     Ok(())
 }
 

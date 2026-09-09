@@ -7,7 +7,7 @@
 //! ## `advanced`
 //!
 //! Enables `darling` and full `syn` AST support.
-//! Provides `members = true` and `member_path` for documenting fields, variants, and inner items.
+//! Provides `members` and `member_path` for documenting fields, variants, and inner items.
 //! The advanced parser also supports generic items and implementations.
 
 use proc_macro::TokenStream;
@@ -33,18 +33,22 @@ mod default;
 /// Repeating `paths = "..."` is supported only in the `default` feature.
 ///
 /// With the `advanced` feature:
-/// - `#[auto_doc(members = true)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`.
+/// - `#[auto_doc(members)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`.
+/// - `source = "folder/sub-folder"` prefixes the default item path and supplies `{source}` to `member_path`.
 /// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
+/// - `source = "folder/sub-folder"` prefixes the default item path and supplies `{source}` to `member_path`.
 /// - `members` and `member_path` are valid only with the named-argument syntax.
 ///
-/// The `member_path` template supports `{type}`, `{member}`, and `{kind}` placeholders.
+/// The `member_path` template supports `{source}`, `{docs}`, `{type}`, `{member}`, and `{kind}` placeholders.
 /// `{kind}` resolves to `field`, `function`, `constant`, `type`, or `variant` for each member.
+/// `{source}` resolves to the explicit `source` argument and is supported in `member_path`.
+/// `{docs}` resolves to the configured documentation root.
 ///
-/// Members marked with `#[doc(hidden)]` are ignored when `members = true`.
+/// Members marked with `#[doc(hidden)]` are ignored when `members` is enabled.
 ///
 /// If no paths are provided, the macro falls back to `docs/<ItemName>.md` for regular items.
 /// `impl` blocks do not receive an item-level document because Rust does not apply `#[doc]`
-/// attributes to them; their members can still be documented with `members = true`.
+/// attributes to them; their members can still be documented with `members`.
 /// For enum variants, the variant itself is documented as one member; tuple or struct fields
 /// inside a variant are not processed separately.
 #[proc_macro_attribute]

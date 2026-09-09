@@ -63,6 +63,14 @@ fn prepare_trybuild_docs() {
             "# TupleStruct\n\nTuple struct documentation.\n",
         ),
         ("TupleStruct/0.md", "# 0\n\nTuple field documentation.\n"),
+        (
+            "source/SourceExample.md",
+            "# Source example\n\nSource-path item documentation.\n",
+        ),
+        (
+            "source/SourceExample/run.md",
+            "# run\n\nSource-path member documentation.\n",
+        ),
     ];
 
     for (rel_path, content) in files {

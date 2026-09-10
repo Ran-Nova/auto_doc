@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.12"
+auto_doc = "0.2.13"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -39,7 +39,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.12", features = ["advanced"] }
+auto_doc = { version = "0.2.13", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -201,7 +201,13 @@ The macro supports item declarations such as:
 * Ignores other attribute blocks (due to procedural macro constraints, since v0.2.4).
 * Since `0.2.9`, the `advanced` feature supports `{source}` and `source = "folder/sub-folder"`. Automatic paths relative to the source file are not supported. (But there was an attempt to implement it. Config too)
 * Since `0.2.11`, generated documentation uses `///`-equivalent `#[doc]` attributes instead of block comments. Clippy recognizes generated `# Errors`, `# Panics`, and `# Safety` sections without automatic lint suppressions. The problem was with the missing Span, which was fixed in this version
-* Since `0.2.12`, tuple structures are now restricted to named items only (previously all tuple fields were processed sequentially by index). Meanwhile, `enum` variants have also gained support for named tuple items.
+* Since `0.2.13`, named fields in standard structs and enum variants are documented as members. Unnamed fields in tuple structs and tuple enum variants are ignored (changed only docs). There is no such thing as a named tuple struct — I forgot about that, sorry xD
+
+## Roadmap
+
+A separate companion crate is planned to support the broader `advanced` workflow, especially when configuration and documentation are spread across a large number of Markdown files and directories. The `members` workflow is one of the problems it is intended to address. The crate currently exists only as a design on paper; its name and implementation will be announced later.
+
+The companion crate is planned to be released together with `auto_doc` `0.3.0`. Until then, this release is `auto_doc` `0.2.13`.
 
 ## Why use it
 

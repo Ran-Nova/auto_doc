@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.13"
+auto_doc = "0.2.14"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -39,7 +39,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.13", features = ["advanced"] }
+auto_doc = { version = "0.2.14", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.

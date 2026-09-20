@@ -106,7 +106,7 @@ fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), Adv
     if config.members
         && !matches!(
             item,
-            Item::Struct(_) | Item::Impl(_) | Item::Trait(_) | Item::Enum(_)
+            Item::Struct(_) | Item::Impl(_) | Item::Trait(_) | Item::Enum(_) | Item::Union(_)
         )
     {
         return Err(AdvancedError::InvalidConfiguration(

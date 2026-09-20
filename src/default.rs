@@ -152,7 +152,7 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
     if has_impl_keyword(&item) {
         return Err(Error::new(
             Span::call_site(),
-            "auto_doc: `impl` blocks require the 'advanced' feature with `members`",
+            "auto_doc: `impl` blocks require the \"advanced\" feature with `members`",
         ));
     }
 
@@ -184,7 +184,18 @@ pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, 
                     }
                 }
                 // Supported item
-                "struct" | "enum" | "trait" | "fn" | "const" | "static" | "type" => {
+                "struct" | "enum" | "trait" | "fn" | "const" | "static" | "type" | "union" => {
+                    if let Some(TokenTree::Ident(name)) = iter.next() {
+                        return Ok(name);
+                    }
+                }
+                "macro_rules" => {
+                    if let Some(TokenTree::Punct(p)) = iter.peek() {
+                        if p.as_char() == '!' {
+                            let _ = iter.next();
+                        }
+                    }
+
                     if let Some(TokenTree::Ident(name)) = iter.next() {
                         return Ok(name);
                     }
@@ -193,10 +204,12 @@ pub(crate) fn get_ident_from_tokens(item_tokens: TokenStream2) -> Result<Ident, 
                 "impl" => {
                     return Err(Error::new(
                         Span::call_site(),
-                        "auto_doc: `impl` blocks are only supported in 'advanced' mode with `members`",
+                        "auto_doc: `impl` blocks are only supported in \"advanced\" mode with `members`",
                     ));
                 }
-                _ => {}
+                _ => {
+                    //println!("Ident: {ident}"); // is "debug"
+                }
             },
             _ => {}
         }

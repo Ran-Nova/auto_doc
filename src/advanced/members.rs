@@ -110,6 +110,26 @@ pub(crate) fn load_members(
                 }
             }
         }
+        Item::Union(item_union) => {
+            for member in &mut item_union.fields.named {
+                let Some(member_ident) = &member.ident else {
+                    continue;
+                };
+
+                if should_skip_member(&member.attrs) {
+                    continue;
+                }
+
+                load_member_documentation(
+                    ident,
+                    &member_ident.to_string(),
+                    MemberKind::Field,
+                    member_ident.span(),
+                    &mut member.attrs,
+                    config,
+                )?;
+            }
+        }
         _ => {
             return Err(Error::new(
                 ident.span(),
@@ -130,16 +150,16 @@ struct ImplMember<'a> {
 
 impl<'a> ImplMember<'a> {
     fn from_item(item: &'a mut ImplItem) -> Option<Self> {
-        if should_skip_member(item.attrs_mut()) {
-            return None;
-        }
-
         let (ident, kind) = match item {
             ImplItem::Const(item) => (item.ident.clone(), MemberKind::Constant),
             ImplItem::Fn(item) => (item.sig.ident.clone(), MemberKind::Function),
             ImplItem::Type(item) => (item.ident.clone(), MemberKind::Type),
             _ => return None,
         };
+
+        if should_skip_member(item.attrs_mut()) {
+            return None;
+        }
 
         Some(Self { ident, kind, item })
     }
@@ -154,16 +174,16 @@ struct TraitMember<'a> {
 
 impl<'a> TraitMember<'a> {
     fn from_item(item: &'a mut TraitItem) -> Option<Self> {
-        if should_skip_member(item.attrs_mut()) {
-            return None;
-        }
-
         let (ident, kind) = match item {
             TraitItem::Const(item) => (item.ident.clone(), MemberKind::Constant),
             TraitItem::Fn(item) => (item.sig.ident.clone(), MemberKind::Function),
             TraitItem::Type(item) => (item.ident.clone(), MemberKind::Type),
             _ => return None,
         };
+
+        if should_skip_member(item.attrs_mut()) {
+            return None;
+        }
 
         Some(Self { ident, kind, item })
     }

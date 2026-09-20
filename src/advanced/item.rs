@@ -82,6 +82,23 @@ pub(crate) fn advanced_item_ident(item: &Item) -> Result<AdvancedItem, Error> {
                 is_impl: true,
             })
         }
+        Item::Macro(item) => {
+            if let Some(ident) = &item.ident {
+                return Ok(AdvancedItem {
+                    ident: ident.clone(),
+                    is_impl: false,
+                });
+            }
+
+            Err(Error::new(
+                Span::call_site(),
+                "auto_doc: unnamed macro_rules not supported!",
+            ))
+        }
+        Item::Union(item) => Ok(AdvancedItem {
+            ident: item.ident.clone(),
+            is_impl: false,
+        }),
         _ => Err(Error::new(
             Span::call_site(),
             "auto_doc: unsupported item type",

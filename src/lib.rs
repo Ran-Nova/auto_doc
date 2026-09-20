@@ -36,7 +36,7 @@ mod default;
 ///
 /// With the `advanced` feature:
 /// - `#[auto_doc(source = "api")]` uses `docs/api/{item}.md` as the default item path.
-/// - `#[auto_doc(members)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`.
+/// - `#[auto_doc(members)]` documents fields in `structs`, variants in `enums`, and members in `traits`/`impls`/`union`.
 /// - `member_path = "docs/{type}/{member}.md"` customizes the member documentation path.
 /// - `source = "folder/sub-folder"` prefixes the default item path and supplies `{source}` to `member_path`.
 /// - `members` and `member_path` are valid only with the named-argument syntax.
@@ -52,8 +52,10 @@ mod default;
 /// `impl` blocks do not receive an item-level document because Rust does not apply `#[doc]`
 /// attributes to them; their members can still be documented with `members`.
 ///
-/// Named fields in `struct` and `enum` variants are processed as members.
+/// Named fields in `struct`, `union` and `enum` variants are processed as members.
 /// Unnamed tuple fields are not processed separately.
+///
+/// You can use it on `macro_rules` too (but on your `macro_rules`)
 #[proc_macro_attribute]
 pub fn auto_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     impl_auto_doc(attr, item).unwrap_or_else(|e| e.to_compile_error().into())

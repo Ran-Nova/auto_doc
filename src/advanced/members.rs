@@ -133,7 +133,7 @@ pub(crate) fn load_members(
         _ => {
             return Err(Error::new(
                 ident.span(),
-                "auto_doc: `members` requires a struct, impl, trait, or enum",
+                "auto_doc: `members` requires a struct, impl, trait, union or enum",
             ))
         }
     }

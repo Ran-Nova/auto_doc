@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.14"
+auto_doc = "0.2.15"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -39,7 +39,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.14", features = ["advanced"] }
+auto_doc = { version = "0.2.15", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -205,6 +205,7 @@ The macro supports item declarations such as:
 * Since `0.2.11`, generated documentation uses `///`-equivalent `#[doc]` attributes instead of block comments. Clippy recognizes generated `# Errors`, `# Panics`, and `# Safety` sections without automatic lint suppressions. The problem was with the missing Span, which was fixed in this version.
 * Since `0.2.12`, named fields in standard structs and enum variants are documented as members. Unnamed fields in tuple structs and tuple enum variants are ignored (changed only docs on `0.2.12`-`0.2.13`). (`0.2.13`) There is no such thing as a named tuple struct — I forgot about that, sorry xD
 * Since `0.2.14` added support `macro_rules` and `union` on both features. `members` work on `union` too.
+* Version `0.2.15` (`advanced` feature) have only error text changes (i forgot add `union` in error)
 
 ## Roadmap
 
@@ -212,7 +213,7 @@ A separate companion crate is planned to support the broader `advanced` workflow
 
 I’m thinking about the `args` argument—it would be like `members`, but for the arguments in a `fn` (possibly even for unnamed `fn`s like `||`), and it should work with `members`. However, that won't happen before version 0.3, since right now it would just add more `<Type>/<Member><ArgsName>.md` files to the docs ;D
 
-The companion crate is planned to be released together with `auto_doc` `0.3.0`. Until then, this release is `auto_doc` `0.2.14`.
+The companion crate is planned to be released together with `auto_doc` `0.3.0`. Until then, this release is `auto_doc` `0.2.15`.
 
 ## Why use it
 

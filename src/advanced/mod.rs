@@ -110,7 +110,7 @@ fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), Adv
         )
     {
         return Err(AdvancedError::InvalidConfiguration(
-            "auto_doc: `members` requires a struct, impl, trait, or enum",
+            "auto_doc: `members` requires a struct, impl, trait, union or enum",
         ));
     }
 

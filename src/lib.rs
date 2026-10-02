@@ -56,7 +56,13 @@ mod default;
 /// Named fields in `struct`, `union` and `enum` variants are processed as members.
 /// Unnamed tuple fields are not processed separately.
 ///
-/// You can use it on `macro_rules` too (but on your `macro_rules`)
+/// `#[macro_export] macro_rules!` is not supported because expanding it through this
+/// attribute can trigger Rust's `macro_expanded_macro_exports_accessed_by_absolute_paths`
+/// lint ([rust-lang/rust#144408](https://github.com/rust-lang/rust/issues/144408)).
+/// For external Markdown documentation on an exported macro, use Rust's built-in
+/// `#[doc = include_str!("path/to/docs.md")]` attribute instead.
+///
+/// `macro_rules!` definitions without `#[macro_export]` are supported.
 #[proc_macro_attribute]
 pub fn auto_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     impl_auto_doc(attr, item).unwrap_or_else(|e| e.to_compile_error().into())

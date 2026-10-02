@@ -12,7 +12,7 @@ This is useful when you want to keep long docs outside the source file and still
 
 ```toml
 [dependencies]
-auto_doc = "0.2.16"
+auto_doc = "0.2.17"
 ```
 
 *I recommend keeping **`auto_doc`** in your **`Cargo.toml`** updated to the latest version for stable library operation.*
@@ -42,7 +42,7 @@ Enable it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-auto_doc = { version = "0.2.16", features = ["advanced"] }
+auto_doc = { version = "0.2.17", features = ["advanced"] }
 ```
 
 The positional path syntax remains available in this mode.
@@ -198,10 +198,11 @@ The macro supports item declarations such as:
 * `type`
 * `impl` (available in the `advanced` feature with `members`)
 * `union`
-* `macro_rules`
+* `macro_rules` (`#[macro_export]` not supported, use `#[doc = include_str!("path")]`)
 
 ## Notes
 
+* `#[macro_export] macro_rules!` is not supported by `#[auto_doc]`: it can trigger Rust's future-incompatibility lint when imported inside the same crate by absolute path ([rust-lang/rust#144408](https://github.com/rust-lang/rust/issues/144408)). `auto_doc` emits a compile error for this combination. For external Markdown documentation on an exported macro, use Rust's built-in `#[doc = include_str!("path/to/docs.md")]` instead; it works without this lint.
 * Paths are resolved relative to the crate root by default.
 * Absolute paths are also accepted.
 * The macro reads the Markdown files at compile time and embeds them into the generated doc text.
@@ -209,7 +210,7 @@ The macro supports item declarations such as:
 * Since `0.2.9`, the `advanced` feature supports `{source}` and `source = "folder/sub-folder"`. Automatic paths relative to the source file are not supported. (But there was an attempt to implement it. Config too)
 * Since `0.2.11`, generated documentation uses `///`-equivalent `#[doc]` attributes instead of block comments. Clippy recognizes generated `# Errors`, `# Panics`, and `# Safety` sections without automatic lint suppressions. The problem was with the missing Span, which was fixed in this version.
 * Since `0.2.12`, named fields in standard structs and enum variants are documented as members. Unnamed fields in tuple structs and tuple enum variants are ignored (changed only docs on `0.2.12`-`0.2.13`). (`0.2.13`) There is no such thing as a named tuple struct — I forgot about that, sorry xD
-* Since `0.2.14` added support `macro_rules` and `union` on both features. `members` work on `union` too.
+* Since `0.2.14`, `macro_rules!` without `#[macro_export]` and `union` are supported in both features. `members` also works on `union`.
 * Version `0.2.15` (`advanced` feature) have only error text changes (i forgot add `union` in error)
 * Since `0.2.16`, mixing `path` and `paths` simultaneously in `#[auto_doc]` arguments is no longer allowed. Why use `path` and `paths` at the same time? You can use one `paths` ;D
 
@@ -219,7 +220,7 @@ A separate companion crate is planned to support the broader `advanced` workflow
 
 I’m thinking about the `args` argument—it would be like `members`, but for the arguments in a `fn` (possibly even for unnamed `fn`s like `||`), and it should work with `members`. However, that won't happen before version 0.3, since right now it would just add more `<Type>/<Member><ArgsName>.md` files to the docs ;D
 
-The companion crate is planned to be released together with `auto_doc` `0.3.0`. Until then, this release is `auto_doc` `0.2.16`.
+The companion crate is planned to be released together with `auto_doc` `0.3.0`. Until then, this release is `auto_doc` `0.2.17`.
 
 ## Why use it
 

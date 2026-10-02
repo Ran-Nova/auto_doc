@@ -51,6 +51,9 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
             .collect();
 
         let parsed_item: Item = syn_parse2(item.clone().into())?;
+
+        reject_macro_export(&parsed_item)?;
+
         let AdvancedItem { ident, is_impl } = advanced_item_ident(&parsed_item)?;
 
         return Ok(expand(paths, &ident, item, is_impl, None)?);
@@ -74,6 +77,7 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
     }
 
     let parsed_item: Item = syn_parse2(item.clone().into())?;
+    reject_macro_export(&parsed_item)?;
 
     validate_advanced_config(&config, &parsed_item)?;
 
@@ -109,6 +113,22 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
         is_impl,
         config.source.as_deref(),
     )?)
+}
+
+fn reject_macro_export(item: &Item) -> Result<(), AdvancedError> {
+    let has_macro_export = matches!(
+        item,
+        Item::Macro(item_macro)
+            if item_macro.attrs.iter().any(|attr| attr.path().is_ident("macro_export"))
+    );
+
+    if has_macro_export {
+        return Err(AdvancedError::InvalidConfiguration(
+            "auto_doc: `#[macro_export] macro_rules!` is not supported; see the library README",
+        ));
+    }
+
+    Ok(())
 }
 
 fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), AdvancedError> {

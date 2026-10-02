@@ -175,6 +175,13 @@ pub(crate) fn impl_auto_doc(attr: TokenStream, item: TokenStream) -> Result<Toke
         ));
     }
 
+    if has_macro_export(&item) {
+        return Err(Error::new(
+            Span::call_site(),
+            "auto_doc: `#[macro_export] macro_rules!` is not supported; see the library README",
+        ));
+    }
+
     let ident = get_ident(&item)?;
 
     expand(paths, &ident, item, false, None)
@@ -268,6 +275,38 @@ fn has_impl_keyword(item: &TokenStream) -> bool {
             false
         }
     })
+}
+
+fn has_macro_export(item: &TokenStream) -> bool {
+    let item: TokenStream2 = item.clone().into();
+    let tokens: Vec<TokenTree> = item.into_iter().collect();
+    if !tokens
+        .iter()
+        .any(|token| matches!(token, TokenTree::Ident(ident) if ident == "macro_rules"))
+    {
+        return false;
+    }
+
+    let mut tokens = tokens.into_iter().peekable();
+    while matches!(tokens.peek(), Some(TokenTree::Punct(punct)) if punct.as_char() == '#') {
+        tokens.next();
+
+        let Some(TokenTree::Group(attribute)) = tokens.next() else {
+            return false;
+        };
+        if attribute.delimiter() != Delimiter::Bracket {
+            return false;
+        }
+
+        if matches!(
+            attribute.stream().into_iter().next(),
+            Some(TokenTree::Ident(ident)) if ident == "macro_export"
+        ) {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn parse_string_literal(lit: &Literal) -> Result<String, Error> {

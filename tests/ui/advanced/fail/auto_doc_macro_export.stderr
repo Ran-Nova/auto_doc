@@ -1,0 +1,7 @@
+error: auto_doc: `#[macro_export] macro_rules!` is not supported; see the library README
+ --> tests/ui/advanced/fail/auto_doc_macro_export.rs:4:1
+  |
+4 | #[auto_doc(path = "docs/example.md")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `auto_doc` (in Nightly builds, run with -Z macro-backtrace for more info)

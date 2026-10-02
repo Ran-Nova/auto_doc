@@ -6,7 +6,8 @@ use members::load_members;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse::Parser, parse2 as syn_parse2, punctuated::Punctuated, Error, Item, Lit, LitStr, Token,
+    parse::Parser, parse2 as syn_parse2, punctuated::Punctuated, Error, Item, Lit, LitStr, Meta,
+    Token,
 };
 
 mod error;
@@ -57,6 +58,20 @@ fn expand_auto_doc(attr: TokenStream, item: TokenStream) -> Result<TokenStream, 
 
     let config = AutoDocArgs::from_list(&nested)
         .map_err(|error| AdvancedError::Attribute(error.to_string()))?;
+
+    let has_path = nested.iter().any(|meta| {
+        matches!(meta, NestedMeta::Meta(Meta::NameValue(value)) if value.path.is_ident("path"))
+    });
+
+    let has_paths = nested.iter().any(|meta| {
+        matches!(meta, NestedMeta::Meta(Meta::NameValue(value)) if value.path.is_ident("paths"))
+    });
+
+    if has_path && has_paths {
+        return Err(AdvancedError::InvalidConfiguration(
+            "auto_doc: `path` and `paths` cannot be used together",
+        ));
+    }
 
     let parsed_item: Item = syn_parse2(item.clone().into())?;
 
@@ -110,7 +125,7 @@ fn validate_advanced_config(config: &AutoDocArgs, item: &Item) -> Result<(), Adv
         )
     {
         return Err(AdvancedError::InvalidConfiguration(
-            "auto_doc: `members` requires a struct, impl, trait, union or enum",
+            "auto_doc: `members` requires a struct, impl, trait, union, or enum",
         ));
     }
 

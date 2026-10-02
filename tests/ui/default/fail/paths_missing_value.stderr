@@ -1,0 +1,5 @@
+error: expected string literal or array for `paths`
+ --> tests/ui/default/fail/paths_missing_value.rs:3:12
+  |
+3 | #[auto_doc(paths =)]
+  |            ^^^^^

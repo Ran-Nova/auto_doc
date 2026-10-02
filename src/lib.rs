@@ -33,6 +33,7 @@ mod default;
 ///
 /// Positional paths and the array form of `paths` are supported in both feature modes.
 /// Repeating `paths = "..."` is supported only in the `default` feature.
+/// Named `path` and `paths` arguments cannot be used together.
 ///
 /// With the `advanced` feature:
 /// - `#[auto_doc(source = "api")]` uses `docs/api/{item}.md` as the default item path.

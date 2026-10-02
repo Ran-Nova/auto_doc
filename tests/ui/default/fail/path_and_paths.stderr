@@ -1,0 +1,5 @@
+error: auto_doc: `path` and `paths` cannot be used together
+ --> tests/ui/default/fail/path_and_paths.rs:3:38
+  |
+3 | #[auto_doc(path = "docs/example.md", paths = "docs/example2.md")]
+  |                                      ^^^^^

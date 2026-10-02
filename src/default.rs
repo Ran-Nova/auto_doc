@@ -11,6 +11,7 @@ use syn::{
 pub(crate) struct AutoDocArgs {
     pub path: Option<String>,
     pub paths: Vec<String>,
+    has_paths: bool,
 }
 
 impl AutoDocArgs {
@@ -22,6 +23,7 @@ impl AutoDocArgs {
         let mut args = AutoDocArgs {
             path: None,
             paths: Vec::new(),
+            has_paths: false,
         };
 
         if tokens.is_empty() {
@@ -87,6 +89,12 @@ where
                 match key.as_str() {
                     "path" => {
                         if let Some(TokenTree::Literal(lit)) = iter.next() {
+                            if args.has_paths {
+                                return Err(Error::new(
+                                    ident.span(),
+                                    "auto_doc: `path` and `paths` cannot be used together",
+                                ));
+                            }
                             if args.path.is_some() {
                                 return Err(Error::new(ident.span(), "duplicate `path` argument"));
                             }
@@ -99,22 +107,33 @@ where
                         }
                     }
                     "paths" => {
-                        if let Some(next_token) = iter.next() {
-                            match next_token {
-                                TokenTree::Literal(lit) => {
-                                    args.paths.push(parse_string_literal(&lit)?);
-                                }
-                                TokenTree::Group(group)
-                                    if group.delimiter() == Delimiter::Bracket =>
-                                {
-                                    parse_string_array(&group, &mut args.paths)?;
-                                }
-                                _ => {
-                                    return Err(Error::new(
-                                        next_token.span(),
-                                        "expected string literal or array for `paths`",
-                                    ));
-                                }
+                        if args.path.is_some() {
+                            return Err(Error::new(
+                                ident.span(),
+                                "auto_doc: `path` and `paths` cannot be used together",
+                            ));
+                        }
+                        args.has_paths = true;
+
+                        let Some(next_token) = iter.next() else {
+                            return Err(Error::new(
+                                ident.span(),
+                                "expected string literal or array for `paths`",
+                            ));
+                        };
+
+                        match next_token {
+                            TokenTree::Literal(lit) => {
+                                args.paths.push(parse_string_literal(&lit)?);
+                            }
+                            TokenTree::Group(group) if group.delimiter() == Delimiter::Bracket => {
+                                parse_string_array(&group, &mut args.paths)?;
+                            }
+                            _ => {
+                                return Err(Error::new(
+                                    next_token.span(),
+                                    "expected string literal or array for `paths`",
+                                ));
                             }
                         }
                     }

@@ -1,0 +1,5 @@
+error: expected `=` after argument name
+ --> tests/ui/default/fail/paths_missing_equals.rs:3:12
+  |
+3 | #[auto_doc(paths "docs/example.md")]
+  |            ^^^^^
